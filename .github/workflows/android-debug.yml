@@ -2,7 +2,7 @@ name: Android Debug Build
 
 on:
   push:
-    branches: [android-clean-rebuild-v2]
+    branches: [android-clean-rebuild-v2, fix/task-persistence-v1]
     paths:
       - "android/**"
       - ".github/workflows/android-debug.yml"
