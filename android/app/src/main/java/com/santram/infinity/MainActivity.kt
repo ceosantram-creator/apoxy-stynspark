@@ -22,7 +22,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.AssistChip
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import org.json.JSONArray
+
+private const val PREFS_NAME = "santram_infinity_local"
+private const val TASKS_KEY = "captured_tasks_v1"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,8 +38,13 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun InfinityHome() {
+    val context = LocalContext.current
+    val preferences = remember(context) {
+        context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+    }
     var command by remember { mutableStateOf("") }
-    var tasks by remember { mutableStateOf(listOf<String>()) }
+    var tasks by remember { mutableStateOf(readTasks(preferences.getString(TASKS_KEY, null))) }
+    var saveError by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -60,12 +70,27 @@ private fun InfinityHome() {
                             onClick = {
                                 val clean = command.trim()
                                 if (clean.isNotEmpty()) {
-                                    tasks = listOf(clean) + tasks
-                                    command = ""
+                                    val updatedTasks = listOf(clean) + tasks
+                                    val saved = preferences.edit()
+                                        .putString(TASKS_KEY, JSONArray(updatedTasks).toString())
+                                        .commit()
+                                    if (saved) {
+                                        tasks = updatedTasks
+                                        command = ""
+                                        saveError = false
+                                    } else {
+                                        saveError = true
+                                    }
                                 }
                             },
                             enabled = command.isNotBlank()
                         ) { Text("Add to inbox") }
+                        if (saveError) {
+                            Text(
+                                "Could not save this task on this device. Please try again.",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
 
@@ -90,12 +115,23 @@ private fun InfinityHome() {
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Privacy: no microphone, notification, location, or accessibility access is requested in this foundation build.",
+                    "Privacy: tasks are stored locally on this device. No microphone, notification, location, or accessibility access is requested in this foundation build.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
+    }
+}
+
+private fun readTasks(raw: String?): List<String> {
+    if (raw.isNullOrBlank()) return emptyList()
+    return try {
+        val json = JSONArray(raw)
+        List(json.length()) { index -> json.optString(index) }
+            .filter { it.isNotBlank() }
+    } catch (_: Exception) {
+        emptyList()
     }
 }
 
