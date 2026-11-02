@@ -44,6 +44,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlinx.coroutines.launch
 
 private const val PREFS_NAME = "santram_infinity_local"
 private const val DATA_KEY = "operating_system_data_v2"
@@ -60,7 +61,7 @@ private data class OsData(
 )
 
 private enum class Screen(val label: String) {
-    HOME("Home"), PERSONAL("Personal"), BUSINESS("Business"), INVOICES("Invoices"), BACKUP("Memory & Backup")
+    HOME("Home"), PERSONAL("Personal"), BUSINESS("Business"), INVOICES("Invoices"), BACKUP("Memory & Backup"), AI("AI Copilot")
 }
 
 class MainActivity : ComponentActivity() {
@@ -196,6 +197,7 @@ private fun SantramOperatingSystem() {
                         onExport = { exportLauncher.launch("santram-infinity-backup.json") },
                         onImport = { importLauncher.launch(arrayOf("application/json", "text/json")) }
                     )
+                    Screen.AI -> AiScreen(silent = silent)
                 }
             }
         }
@@ -216,6 +218,7 @@ private fun HomeScreen(data: OsData, onNavigate: (Screen) -> Unit) {
         item { ModuleButton("SANTRAM Business", "Customer master and contact records") { onNavigate(Screen.BUSINESS) } }
         item { ModuleButton("Invoices & receivables", "Local invoice register · tax engine pending") { onNavigate(Screen.INVOICES) } }
         item { ModuleButton("Memory & Backup", "Export and restore a JSON backup") { onNavigate(Screen.BACKUP) } }
+        item { ModuleButton("SANTRAM AI Copilot", "Connect your own secure ChatGPT API backend") { onNavigate(Screen.AI) } }
         item { Text("AI provider, cloud sync and GST-compliant invoice issuance are not connected yet. Voice capture and local alarm scheduling are available in Build 5.", style = MaterialTheme.typography.bodySmall) }
     }
 }
@@ -308,6 +311,84 @@ private fun InvoiceScreen(data: OsData, onAdd: (String, String, Double) -> Unit)
             }
         }
         Text("These are internal draft records, not GST tax invoices. No invoice numbering compliance, tax calculation, PDF issuance or e-invoicing is enabled.", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+
+@Composable
+private fun AiScreen(silent: Boolean) {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("santram_ai_connection", Context.MODE_PRIVATE) }
+    var baseUrl by remember { mutableStateOf(prefs.getString("backend_url", "") ?: "") }
+    var token by remember { mutableStateOf(SecureTokenStore.load(context)) }
+    var prompt by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf("Connect to your own HTTPS backend. The OpenAI key never belongs in this app.") }
+    val messages = remember { mutableStateListOf<Pair<String, String>>() }
+    val scope = rememberCoroutineScope()
+    val tts = remember(context) { TextToSpeech(context) {} }
+    DisposableEffect(tts) { onDispose { tts.shutdown() } }
+    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!spoken.isNullOrBlank()) prompt = spoken
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+        Text("SANTRAM AI · Live ChatGPT connection", style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(baseUrl, { baseUrl = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Your HTTPS backend URL") }, singleLine = true, placeholder = { Text("https://ai.your-domain.com") })
+        OutlinedTextField(token, { token = it }, modifier = Modifier.fillMaxWidth(), label = { Text("SANTRAM app access token") }, singleLine = true)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                if (!baseUrl.startsWith("https://")) status = "Enter a valid HTTPS backend URL."
+                else {
+                    prefs.edit().putString("backend_url", baseUrl.trimEnd('/')).apply()
+                    SecureTokenStore.save(context, token)
+                    status = "Backend settings saved. Token encrypted with Android Keystore."
+                }
+            }) { Text("Save secure settings") }
+            OutlinedButton(onClick = {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to SANTRAM AI")
+                }
+                runCatching { voiceLauncher.launch(intent) }.onFailure { status = "Speech recognition is unavailable." }
+            }) { Text("Speak") }
+        }
+        Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(messages) { item ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(10.dp)) {
+                        Text(if (item.first == "user") "YOU" else "SANTRAM AI", style = MaterialTheme.typography.labelSmall)
+                        Text(item.second)
+                    }
+                }
+            }
+        }
+        OutlinedTextField(prompt, { prompt = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Ask in Hindi, English or Tamil") })
+        Button(
+            enabled = !busy && prompt.isNotBlank() && baseUrl.startsWith("https://") && token.isNotBlank(),
+            onClick = {
+                val question = prompt.trim()
+                prompt = ""
+                messages.add("user" to question)
+                busy = true
+                status = "Connecting securely to your server…"
+                scope.launch {
+                    try {
+                        val reply = AiBackend.send(baseUrl, token, messages.toList())
+                        messages.add("assistant" to reply)
+                        status = "Live AI response received."
+                        if (!silent) tts.speak(reply, TextToSpeech.QUEUE_FLUSH, null, "santram-ai-reply")
+                    } catch (error: Exception) {
+                        status = error.message ?: "AI connection failed."
+                    } finally {
+                        busy = false
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(if (busy) "Connecting…" else "Send to SANTRAM AI") }
     }
 }
 
