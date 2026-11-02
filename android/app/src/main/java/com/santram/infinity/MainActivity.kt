@@ -1,146 +1,326 @@
 package com.santram.infinity
 
+import android.content.Context
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.AssistChip
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import org.json.JSONArray
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 
 private const val PREFS_NAME = "santram_infinity_local"
-private const val TASKS_KEY = "captured_tasks_v1"
+private const val DATA_KEY = "operating_system_data_v2"
+private const val SILENT_KEY = "silent_mode_v1"
+
+private data class TaskRecord(val id: String, val text: String, val createdAt: Long, val done: Boolean)
+private data class CustomerRecord(val id: String, val name: String, val phone: String, val gstin: String)
+private data class InvoiceRecord(val id: String, val customer: String, val description: String, val amount: Double, val createdAt: Long)
+
+private data class OsData(
+    val tasks: List<TaskRecord> = emptyList(),
+    val customers: List<CustomerRecord> = emptyList(),
+    val invoices: List<InvoiceRecord> = emptyList()
+)
+
+private enum class Screen(val label: String) {
+    HOME("Home"), PERSONAL("Personal"), BUSINESS("Business"), INVOICES("Invoices"), BACKUP("Memory & Backup")
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { InfinityHome() }
+        setContent { SantramOperatingSystem() }
     }
 }
 
 @Composable
-private fun InfinityHome() {
+private fun SantramOperatingSystem() {
     val context = LocalContext.current
-    val preferences = remember(context) {
-        context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+    val prefs = remember(context) { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
+    var data by remember { mutableStateOf(readData(prefs.getString(DATA_KEY, null))) }
+    var screen by remember { mutableStateOf(Screen.HOME) }
+    var silent by remember { mutableStateOf(prefs.getBoolean(SILENT_KEY, true)) }
+    var status by remember { mutableStateOf("Local-first mode · This device") }
+
+    fun persist(updated: OsData) {
+        val saved = prefs.edit().putString(DATA_KEY, encodeData(updated).toString()).commit()
+        if (saved) {
+            data = updated
+            status = "Saved securely on this device"
+        } else {
+            status = "Save failed · Please retry"
+        }
     }
-    var command by remember { mutableStateOf("") }
-    var tasks by remember { mutableStateOf(readTasks(preferences.getString(TASKS_KEY, null))) }
-    var saveError by remember { mutableStateOf(false) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(encodeData(data).toString(2).toByteArray(Charsets.UTF_8))
+                } ?: error("Unable to open destination")
+            }.onSuccess { status = "Backup exported successfully" }
+                .onFailure { status = "Backup export failed: ${it.message}" }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            runCatching {
+                val raw = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    ?: error("Unable to read selected file")
+                decodeData(JSONObject(raw))
+            }.onSuccess { imported ->
+                persist(imported)
+                status = "Backup restored on this device"
+            }.onFailure { status = "Restore failed: ${it.message}" }
+        }
+    }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
-                modifier = Modifier.fillMaxSize().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxSize().padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("SANTRAM PERSONAL AI", style = MaterialTheme.typography.headlineSmall)
-                Text("INFINITY · Android 15 foundation", style = MaterialTheme.typography.titleMedium)
-                AssistChip(onClick = {}, label = { Text("SILENT MODE · ON") })
-
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Command Inbox", style = MaterialTheme.typography.titleLarge)
-                        Text("Text-first workspace. Voice capture is not enabled in this build.")
-                        OutlinedTextField(
-                            value = command,
-                            onValueChange = { command = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Enter a task or business instruction") }
-                        )
-                        Button(
-                            onClick = {
-                                val clean = command.trim()
-                                if (clean.isNotEmpty()) {
-                                    val updatedTasks = listOf(clean) + tasks
-                                    val saved = preferences.edit()
-                                        .putString(TASKS_KEY, JSONArray(updatedTasks).toString())
-                                        .commit()
-                                    if (saved) {
-                                        tasks = updatedTasks
-                                        command = ""
-                                        saveError = false
-                                    } else {
-                                        saveError = true
-                                    }
-                                }
-                            },
-                            enabled = command.isNotBlank()
-                        ) { Text("Add to inbox") }
-                        if (saveError) {
-                            Text(
-                                "Could not save this task on this device. Please try again.",
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                }
-
-                Text("Workspace Modules", style = MaterialTheme.typography.titleLarge)
+                Text("SANTRAM INDUSTRIES", style = MaterialTheme.typography.headlineSmall)
+                Text("AI OPERATING SYSTEM · INFINITY", style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ModuleCard("Personal", "Tasks & notes", Modifier.weight(1f))
-                    ModuleCard("Business", "Customers & invoices", Modifier.weight(1f))
+                    Text("SILENT MODE", modifier = Modifier.weight(1f))
+                    Switch(checked = silent, onCheckedChange = {
+                        silent = it
+                        prefs.edit().putBoolean(SILENT_KEY, it).apply()
+                    })
                 }
-                ModuleCard("Memory & Backup", "Local-first · approval required", Modifier.fillMaxWidth())
-
-                Text("Captured Tasks", style = MaterialTheme.typography.titleLarge)
-                if (tasks.isEmpty()) {
-                    Text("No tasks captured yet.")
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(tasks) { item ->
-                            Card(Modifier.fillMaxWidth()) {
-                                Text(item, Modifier.padding(12.dp))
-                            }
+                Text(if (silent) "Silent by default · No spoken output" else "Silent mode off · Voice output is not implemented")
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Screen.entries.take(3).forEach { item ->
+                        OutlinedButton(onClick = { screen = item }, modifier = Modifier.weight(1f)) {
+                            Text(item.label, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Privacy: tasks are stored locally on this device. No microphone, notification, location, or accessibility access is requested in this foundation build.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Screen.entries.drop(3).forEach { item ->
+                        OutlinedButton(onClick = { screen = item }, modifier = Modifier.weight(1f)) {
+                            Text(item.label, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+                Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                when (screen) {
+                    Screen.HOME -> HomeScreen(data, onNavigate = { screen = it })
+                    Screen.PERSONAL -> PersonalScreen(data, onAdd = { text ->
+                        persist(data.copy(tasks = listOf(TaskRecord(UUID.randomUUID().toString(), text, System.currentTimeMillis(), false)) + data.tasks))
+                    }, onToggle = { id ->
+                        persist(data.copy(tasks = data.tasks.map { if (it.id == id) it.copy(done = !it.done) else it }))
+                    })
+                    Screen.BUSINESS -> BusinessScreen(data, onAdd = { name, phone, gstin ->
+                        persist(data.copy(customers = listOf(CustomerRecord(UUID.randomUUID().toString(), name, phone, gstin)) + data.customers))
+                    })
+                    Screen.INVOICES -> InvoiceScreen(data, onAdd = { customer, description, amount ->
+                        persist(data.copy(invoices = listOf(InvoiceRecord("SI-${System.currentTimeMillis()}", customer, description, amount, System.currentTimeMillis())) + data.invoices))
+                    })
+                    Screen.BACKUP -> BackupScreen(
+                        onExport = { exportLauncher.launch("santram-infinity-backup.json") },
+                        onImport = { importLauncher.launch(arrayOf("application/json", "text/json")) }
+                    )
+                }
             }
         }
     }
 }
 
-private fun readTasks(raw: String?): List<String> {
-    if (raw.isNullOrBlank()) return emptyList()
-    return try {
-        val json = JSONArray(raw)
-        List(json.length()) { index -> json.optString(index) }
-            .filter { it.isNotBlank() }
-    } catch (_: Exception) {
-        emptyList()
+@Composable
+private fun HomeScreen(data: OsData, onNavigate: (Screen) -> Unit) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item { Text("Central Command Dashboard", style = MaterialTheme.typography.titleLarge) }
+        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MetricCard("Open tasks", data.tasks.count { !it.done }.toString(), Modifier.weight(1f))
+            MetricCard("Customers", data.customers.size.toString(), Modifier.weight(1f))
+            MetricCard("Invoices", data.invoices.size.toString(), Modifier.weight(1f))
+        } }
+        item { Text("Operating modules", style = MaterialTheme.typography.titleMedium) }
+        item { ModuleButton("Personal command center", "Tasks and reminders stored locally") { onNavigate(Screen.PERSONAL) } }
+        item { ModuleButton("SANTRAM Business", "Customer master and contact records") { onNavigate(Screen.BUSINESS) } }
+        item { ModuleButton("Invoices & receivables", "Local invoice register · tax engine pending") { onNavigate(Screen.INVOICES) } }
+        item { ModuleButton("Memory & Backup", "Export and restore a JSON backup") { onNavigate(Screen.BACKUP) } }
+        item { Text("AI provider, cloud sync, GST-compliant invoice issuance and scheduled notifications are not connected in this build.", style = MaterialTheme.typography.bodySmall) }
     }
 }
 
 @Composable
-private fun ModuleCard(title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall)
+private fun PersonalScreen(data: OsData, onAdd: (String) -> Unit, onToggle: (String) -> Unit) {
+    var command by remember { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Personal Command Inbox", style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(value = command, onValueChange = { command = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Enter task, note or reminder") })
+        Button(onClick = { onAdd(command.trim()); command = "" }, enabled = command.isNotBlank()) { Text("Save task locally") }
+        Text("Captured tasks · ${data.tasks.size}", style = MaterialTheme.typography.titleMedium)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(data.tasks, key = { it.id }) { task ->
+                Card(Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Switch(checked = task.done, onCheckedChange = { onToggle(task.id) })
+                        Column {
+                            Text(task.text)
+                            Text(if (task.done) "Completed" else "Open · " + dateLabel(task.createdAt), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
+@Composable
+private fun BusinessScreen(data: OsData, onAdd: (String, String, String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var gstin by remember { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("SANTRAM INDUSTRIES · Customers", style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Customer / company name *") }, singleLine = true)
+        OutlinedTextField(phone, { phone = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Phone number") }, singleLine = true)
+        OutlinedTextField(gstin, { gstin = it }, modifier = Modifier.fillMaxWidth(), label = { Text("GSTIN (optional)") }, singleLine = true)
+        Button(onClick = { onAdd(name.trim(), phone.trim(), gstin.trim()); name = ""; phone = ""; gstin = "" }, enabled = name.isNotBlank()) { Text("Add customer") }
+        Text("Customer master · ${data.customers.size}", style = MaterialTheme.typography.titleMedium)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(data.customers, key = { it.id }) { customer ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(customer.name, style = MaterialTheme.typography.titleMedium)
+                        if (customer.phone.isNotBlank()) Text(customer.phone)
+                        if (customer.gstin.isNotBlank()) Text("GSTIN: ${customer.gstin}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InvoiceScreen(data: OsData, onAdd: (String, String, Double) -> Unit) {
+    var customer by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Invoice Register · Draft records", style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(customer, { customer = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Customer name *") }, singleLine = true)
+        OutlinedTextField(description, { description = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Product / service description *") })
+        OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("Amount ₹ *") }, singleLine = true)
+        Button(onClick = {
+            onAdd(customer.trim(), description.trim(), amount.toDouble())
+            customer = ""; description = ""; amount = ""
+        }, enabled = customer.isNotBlank() && description.isNotBlank() && (amount.toDoubleOrNull() ?: 0.0) > 0.0) { Text("Save invoice draft") }
+        Text("Saved records · ${data.invoices.size}", style = MaterialTheme.typography.titleMedium)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(data.invoices, key = { it.id }) { invoice ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(invoice.id, style = MaterialTheme.typography.titleMedium)
+                        Text(invoice.customer)
+                        Text(invoice.description)
+                        Text("₹ ${String.format(Locale.US, "%.2f", invoice.amount)}")
+                        Text(dateLabel(invoice.createdAt), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+        Text("These are internal draft records, not GST tax invoices. No invoice numbering compliance, tax calculation, PDF issuance or e-invoicing is enabled.", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun BackupScreen(onExport: () -> Unit, onImport: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Memory & Backup", style = MaterialTheme.typography.titleLarge)
+        Text("Your operating records stay on this device unless you explicitly export them.")
+        Button(onClick = onExport, modifier = Modifier.fillMaxWidth()) { Text("Export backup JSON") }
+        OutlinedButton(onClick = onImport, modifier = Modifier.fillMaxWidth()) { Text("Restore from backup JSON") }
+        Text("Choose a secure destination you control. Keep backup files private. Import replaces the current local task, customer and invoice records.", style = MaterialTheme.typography.bodySmall)
+        Text("Cloud sync and Google Drive connection are not active.", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun MetricCard(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier) { Column(Modifier.padding(12.dp)) { Text(value, style = MaterialTheme.typography.headlineSmall); Text(label, style = MaterialTheme.typography.bodySmall) } }
+}
+
+@Composable
+private fun ModuleButton(title: String, subtitle: String, onClick: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(onClick = onClick) { Text("Open module") }
+        }
+    }
+}
+
+private fun dateLabel(time: Long): String = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(time))
+
+private fun encodeData(data: OsData): JSONObject = JSONObject().apply {
+    put("schemaVersion", 2)
+    put("product", "SANTRAM INDUSTRIES AI Operating System")
+    put("tasks", JSONArray().apply { data.tasks.forEach { put(JSONObject().apply {
+        put("id", it.id); put("text", it.text); put("createdAt", it.createdAt); put("done", it.done)
+    }) } })
+    put("customers", JSONArray().apply { data.customers.forEach { put(JSONObject().apply {
+        put("id", it.id); put("name", it.name); put("phone", it.phone); put("gstin", it.gstin)
+    }) } })
+    put("invoices", JSONArray().apply { data.invoices.forEach { put(JSONObject().apply {
+        put("id", it.id); put("customer", it.customer); put("description", it.description); put("amount", it.amount); put("createdAt", it.createdAt)
+    }) } })
+}
+
+private fun decodeData(root: JSONObject): OsData {
+    fun array(name: String) = root.optJSONArray(name) ?: JSONArray()
+    val tasks = array("tasks").let { a -> List(a.length()) { i -> a.getJSONObject(i).let {
+        TaskRecord(it.optString("id", UUID.randomUUID().toString()), it.optString("text"), it.optLong("createdAt"), it.optBoolean("done"))
+    } }.filter { it.text.isNotBlank() } }
+    val customers = array("customers").let { a -> List(a.length()) { i -> a.getJSONObject(i).let {
+        CustomerRecord(it.optString("id", UUID.randomUUID().toString()), it.optString("name"), it.optString("phone"), it.optString("gstin"))
+    } }.filter { it.name.isNotBlank() } }
+    val invoices = array("invoices").let { a -> List(a.length()) { i -> a.getJSONObject(i).let {
+        InvoiceRecord(it.optString("id", "SI-${System.currentTimeMillis()}"), it.optString("customer"), it.optString("description"), it.optDouble("amount"), it.optLong("createdAt"))
+    } }.filter { it.customer.isNotBlank() && it.amount > 0.0 } }
+    return OsData(tasks, customers, invoices)
+}
+
+private fun readData(raw: String?): OsData = if (raw.isNullOrBlank()) OsData() else runCatching {
+    decodeData(JSONObject(raw))
+}.getOrDefault(OsData())
