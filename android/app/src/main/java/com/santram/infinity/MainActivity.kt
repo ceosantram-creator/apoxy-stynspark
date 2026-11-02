@@ -79,14 +79,6 @@ private fun SantramOperatingSystem() {
     var silent by remember { mutableStateOf(prefs.getBoolean(SILENT_KEY, true)) }
     var status by remember { mutableStateOf("Local-first mode · This device") }
 
-    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!spoken.isNullOrBlank()) {
-            persist(data.copy(tasks = listOf(TaskRecord(UUID.randomUUID().toString(), spoken, System.currentTimeMillis(), false)) + data.tasks))
-            status = "Voice command captured and saved"
-        } else if (result.resultCode == android.app.Activity.RESULT_OK) status = "No speech was recognized"
-    }
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     fun startVoiceCapture() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -118,6 +110,15 @@ private fun SantramOperatingSystem() {
             status = "Save failed · Please retry"
         }
     }
+
+    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!spoken.isNullOrBlank()) {
+            persist(data.copy(tasks = listOf(TaskRecord(UUID.randomUUID().toString(), spoken, System.currentTimeMillis(), false)) + data.tasks))
+            status = "Voice command captured and saved"
+        } else if (result.resultCode == android.app.Activity.RESULT_OK) status = "No speech was recognized"
+    }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
