@@ -1,37 +1,50 @@
-# APOXY × STYNSPARK CREATION — Local-first MVP
+# SANTRAM INDUSTRIES — AI Operating System INFINITY
 
-A browser-based prototype implementing a responsive workspace, dynamic DTF design intake, dimension calculator, local project persistence, demo supplier matching, local RFQ drafts, production checklist, manual shipment records, subscription status placeholder, and JSON import/export.
+Android 15 local-first operating system foundation for personal and business workflows.
 
-## Run locally
+## Current Android checkpoint
 
-Because this is a static PWA, you can open `index.html` directly for most features. For service-worker/offline testing, run a local static server from this directory, for example:
+The Android app now includes:
+- Central dashboard with task, customer and invoice-draft counts.
+- Personal command inbox with locally persisted tasks and completion status.
+- Business customer register (name, phone, optional GSTIN).
+- Internal invoice draft register (customer, description, amount).
+- Silent Mode preference (silent by default).
+- User-selected JSON backup export and restore through Android's document picker.
+- No microphone, notification-listener, accessibility or location permission is requested by this foundation.
+
+## Build
+
+The Android project is under `android/`. CI uses JDK 17 and Gradle 8.9:
 
 ```bash
-python -m http.server 8000
+cd android
+gradle assembleDebug
 ```
 
-Then open `http://localhost:8000`.
+The branch-only GitHub Actions workflow builds a debug APK on pushes to `android-clean-rebuild-v2`.
 
-No package installation or dedicated server is required for this prototype. A local static server is only for development/testing. Static hosting can serve the app when you publish it.
+## Important release limitations
 
-## Data and limitations
+This checkpoint is an offline-first functional foundation, **not yet the complete AI Operating System or a production financial system**:
+- Tasks, customers and invoice drafts are stored locally in app preferences. They are not encrypted with a dedicated database/key-management layer yet.
+- Backup export/restore is user initiated. Cloud sync and Google Drive integration are not connected.
+- Invoice records are drafts only. GST calculations, compliant numbering, PDF generation, e-invoice/e-way bill, payment reconciliation and audit-grade immutable issue snapshots are not implemented.
+- No AI model/provider is connected. No automatic task/date extraction or autonomous agent execution is claimed.
+- Voice capture, reminders/alarms, background services, WhatsApp/Gmail/Drive connectors and notification summaries are not implemented in this checkpoint.
+- Do not enter sensitive credentials or payment secrets. Validate backups and keep them in a private location.
 
-- Projects, RFQs, shipment records and checklist selections are stored in browser `localStorage`.
-- Export a JSON backup regularly. Clearing browser storage can erase the data.
-- Supplier entries are fictional demo data, not verified suppliers.
-- RFQs and shipment records are local drafts; nothing is sent to a supplier or courier.
-- Subscription is a demo display only. There is no real authentication, payment processing, entitlement enforcement or admin identity.
-- No AI provider is connected. Ask APOXY routes prompts into local workflows; it does not call an LLM.
-- No production artwork is generated. Creation Studio creates a technical brief only. The preview is illustrative.
-- SVG/PDF export, real vectorization, CMYK profile conversion, payment APIs, supplier APIs and courier APIs are not implemented.
-- Do not store secrets, passwords, payment credentials or sensitive personal data in this prototype.
+## Required production roadmap
 
-## Next production steps
+1. Room database, migrations, encrypted local storage and automated backup/restore tests.
+2. User-initiated speech-to-text with clear microphone permission, recording state and visible controls.
+3. Reliable reminder scheduling with Android notification permission and exact-alarm policy handling.
+4. Business catalogue, tax rules, validated invoice numbering, PDF renderer and regression tests.
+5. AI provider adapter with server-side secrets, consent, usage limits and human approval for consequential actions.
+6. Authenticated cloud sync, conflict handling, audit log and user-authorized Drive integration.
+7. Optional narrow notification/accessibility bridges, individually enabled and permissioned.
+8. Release signing, device installation tests, privacy review and recovery testing.
 
-1. Add automated tests and stronger schema validation.
-2. Add managed authentication and tenant isolation.
-3. Add a serverless entitlement verification endpoint and payment webhooks.
-4. Add an AI provider adapter with server-side secret storage and usage limits.
-5. Add real supplier records only after verification and consent.
-6. Add provider-specific artwork export and preflight tools.
-7. Integrate payment/logistics providers only after sandbox tests and contract review.
+## Protected development boundary
+
+All Android development remains on `android-clean-rebuild-v2`. The `main` branch is protected from this work until explicit review.
