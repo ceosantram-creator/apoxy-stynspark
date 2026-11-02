@@ -1,6 +1,15 @@
 package com.santram.infinity
 
 import android.content.Context
+import android.content.Intent
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.app.TimePickerDialog
+import android.os.Build
+import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
+import android.widget.Toast
+import java.util.Calendar
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -69,6 +78,36 @@ private fun SantramOperatingSystem() {
     var screen by remember { mutableStateOf(Screen.HOME) }
     var silent by remember { mutableStateOf(prefs.getBoolean(SILENT_KEY, true)) }
     var status by remember { mutableStateOf("Local-first mode · This device") }
+
+    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!spoken.isNullOrBlank()) {
+            persist(data.copy(tasks = listOf(TaskRecord(UUID.randomUUID().toString(), spoken, System.currentTimeMillis(), false)) + data.tasks))
+            status = "Voice command captured and saved"
+        } else if (result.resultCode == android.app.Activity.RESULT_OK) status = "No speech was recognized"
+    }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    fun startVoiceCapture() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your task")
+        }
+        runCatching { voiceLauncher.launch(intent) }
+            .onFailure { status = "Speech service unavailable on this device" }
+    }
+    fun scheduleAlarm(hour: Int, minute: Int) {
+        val alarmTime = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour); set(Calendar.MINUTE, minute); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
+        }
+        val alarmIntent = Intent(context, AlarmReceiver::class.java).putExtra("alarm_label", "SANTRAM reminder")
+        val pending = PendingIntent.getBroadcast(context, (hour * 60 + minute), alarmIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTime.timeInMillis, pending)
+        status = "Alarm scheduled for " + SimpleDateFormat("hh:mm a", Locale.getDefault()).format(alarmTime.time)
+        if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
 
     fun persist(updated: OsData) {
         val saved = prefs.edit().putString(DATA_KEY, encodeData(updated).toString()).commit()
@@ -145,7 +184,7 @@ private fun SantramOperatingSystem() {
                         persist(data.copy(tasks = listOf(TaskRecord(UUID.randomUUID().toString(), text, System.currentTimeMillis(), false)) + data.tasks))
                     }, onToggle = { id ->
                         persist(data.copy(tasks = data.tasks.map { if (it.id == id) it.copy(done = !it.done) else it }))
-                    })
+                    }, onVoice = { startVoiceCapture() }, onAlarm = { hour, minute -> scheduleAlarm(hour, minute) })
                     Screen.BUSINESS -> BusinessScreen(data, onAdd = { name, phone, gstin ->
                         persist(data.copy(customers = listOf(CustomerRecord(UUID.randomUUID().toString(), name, phone, gstin)) + data.customers))
                     })
@@ -176,17 +215,26 @@ private fun HomeScreen(data: OsData, onNavigate: (Screen) -> Unit) {
         item { ModuleButton("SANTRAM Business", "Customer master and contact records") { onNavigate(Screen.BUSINESS) } }
         item { ModuleButton("Invoices & receivables", "Local invoice register · tax engine pending") { onNavigate(Screen.INVOICES) } }
         item { ModuleButton("Memory & Backup", "Export and restore a JSON backup") { onNavigate(Screen.BACKUP) } }
-        item { Text("AI provider, cloud sync, GST-compliant invoice issuance and scheduled notifications are not connected in this build.", style = MaterialTheme.typography.bodySmall) }
+        item { Text("AI provider, cloud sync and GST-compliant invoice issuance are not connected yet. Voice capture and local alarm scheduling are available in Build 5.", style = MaterialTheme.typography.bodySmall) }
     }
 }
 
 @Composable
-private fun PersonalScreen(data: OsData, onAdd: (String) -> Unit, onToggle: (String) -> Unit) {
+private fun PersonalScreen(data: OsData, onAdd: (String) -> Unit, onToggle: (String) -> Unit, onVoice: () -> Unit, onAlarm: (Int, Int) -> Unit) {
+    val context = LocalContext.current
     var command by remember { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Personal Command Inbox", style = MaterialTheme.typography.titleLarge)
         OutlinedTextField(value = command, onValueChange = { command = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Enter task, note or reminder") })
-        Button(onClick = { onAdd(command.trim()); command = "" }, enabled = command.isNotBlank()) { Text("Save task locally") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { onAdd(command.trim()); command = "" }, enabled = command.isNotBlank()) { Text("Save task") }
+            OutlinedButton(onClick = onVoice) { Text("Speak task") }
+        }
+        OutlinedButton(onClick = {
+            val now = Calendar.getInstance()
+            TimePickerDialog(context, { _, hour, minute -> onAlarm(hour, minute) },
+                now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), false).show()
+        }, modifier = Modifier.fillMaxWidth()) { Text("Set a real Android alarm") }
         Text("Captured tasks · ${data.tasks.size}", style = MaterialTheme.typography.titleMedium)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(data.tasks, key = { it.id }) { task ->
@@ -324,3 +372,22 @@ private fun decodeData(root: JSONObject): OsData {
 private fun readData(raw: String?): OsData = if (raw.isNullOrBlank()) OsData() else runCatching {
     decodeData(JSONObject(raw))
 }.getOrDefault(OsData())
+
+
+class AlarmReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val channelId = "santram_reminders"
+        if (Build.VERSION.SDK_INT >= 26) {
+            manager.createNotificationChannel(android.app.NotificationChannel(channelId, "SANTRAM Reminders", android.app.NotificationManager.IMPORTANCE_HIGH))
+        }
+        val notification = androidx.core.app.NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("SANTRAM PERSONAL AI")
+            .setContentText(intent.getStringExtra("alarm_label") ?: "Your reminder is due")
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(5001, notification)
+    }
+}
