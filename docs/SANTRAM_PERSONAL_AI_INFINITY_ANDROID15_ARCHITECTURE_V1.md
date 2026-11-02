@@ -1,106 +1,85 @@
-# SANTRAM PERSONAL AI INFINITY — Android 15 Architecture
-Version: 1.0
+# SANTRAM INDUSTRIES — AI Operating System INFINITY
+Version: 2.0 checkpoint
 Date: 2026-11-02
 Repository: ceosantram-creator/apoxy-stynspark
 Implementation branch: android-clean-rebuild-v2
 Protected branch: main (do not modify)
 
 ## Product goal
-Build one silent, text-first Android assistant and central dashboard combining:
-1. Personal/mobile workflow management.
-2. SANTRAM INDUSTRIES business operations.
-3. User-approved memory, file organization, and backup.
-4. Reliable document generation and verification.
+One silent-by-default, local-first Android command center for personal workflows and SANTRAM INDUSTRIES operations. The product must distinguish implemented capabilities from planned integrations and never claim access or automation that is not active.
 
-## Non-negotiable operating rules
-- Silent output by default: no text-to-speech or unsolicited spoken replies.
-- Voice capture is user-initiated and visibly active; no covert or ambient always-on recording.
-- Show a persistent foreground notification while an approved microphone capture session is active.
-- Never claim continuous listening, background monitoring, or data access unless a supported permissioned service is active.
-- Do not read private notifications, contacts, files, messages, or location without a clear feature purpose and explicit Android permission.
-- Accessibility automation is opt-in, narrow in scope, and requires confirmation for consequential actions.
-- Financial records are local-first, backed up only to user-approved destinations, and audit logged.
-- Never invent customer details, GSTIN, invoice numbers, payment records, or signatures.
-- Preserve the Radha Enterprises invoice PDF as the approved invoice layout reference; render and visually inspect before release.
-- Never modify the GitHub main branch. Work only on android-clean-rebuild-v2 until review.
+## Operating rules
+- Silent output by default; no unsolicited text-to-speech.
+- Microphone capture, if added, must be user-initiated, visibly active and permissioned. No covert or ambient always-on recording.
+- No reading private notifications, contacts, files, messages or location without a clear feature purpose and explicit Android permission.
+- Consequential actions (sending messages, payments, deletion, account changes, invoice issue) require user confirmation.
+- Financial records are local-first and backed up only to user-selected destinations.
+- Never invent customer details, GSTIN, invoice numbers, payment records or signatures.
+- Never modify GitHub main; work only on android-clean-rebuild-v2 until review.
 
-## Proposed architecture
+## Current implemented Android checkpoint
+- Jetpack Compose Android 15 application shell.
+- Silent Mode preference stored locally.
+- Central dashboard counters for tasks, customers and invoice drafts.
+- Personal task inbox with local persistence and completion toggles.
+- Business customer register with name, phone and optional GSTIN.
+- Internal invoice draft register with customer, description and amount.
+- User-triggered JSON backup export and restore using Android document picker.
+- No microphone, notification-listener, accessibility or location permissions requested.
+
+## Explicitly not implemented yet
+- Room database, encrypted database/key management and robust migrations.
+- AI provider, LLM reasoning, automatic intent/date parsing or agent execution.
+- Voice capture and speech-to-text.
+- Scheduled reminders, alarms or background monitoring.
+- GST calculation, compliant invoice sequence, immutable issued invoices, PDF generation, e-invoice/e-way bill or payment reconciliation.
+- Cloud backend, authentication, multi-device sync, Google Drive connector or WhatsApp/Gmail integrations.
+- Notification summaries or accessibility automation.
+
+## Target architecture
 ### Android client
-- Kotlin + Jetpack Compose UI.
-- MVVM / repository pattern.
-- Room database for offline-first structured records.
-- DataStore for preferences and feature toggles.
-- WorkManager for deferrable sync, backups, and scheduled housekeeping.
-- Android SpeechRecognizer or an approved speech-to-text provider, started only by explicit user action.
-- Foreground microphone service only during a user-started capture session, with RECORD_AUDIO permission and visible notification.
-- NotificationListenerService only as an optional, separately enabled feature with source-app allowlist and local redaction.
-- AccessibilityService only for explicitly enabled, user-triggered workflows; no hidden control or broad scraping.
+- Kotlin + Jetpack Compose.
+- MVVM/repository architecture.
+- Room for structured offline-first data; DataStore for preferences.
+- WorkManager for deferrable sync and backup jobs.
+- User-initiated speech recognition with visible lifecycle and Android permission.
 - Android Sharesheet and Storage Access Framework for file import/export.
+- Narrow opt-in notification/accessibility integrations only after privacy review.
 
 ### Business core
-- Customer master and address/GST profile.
-- Item and HSN/SAC catalogue.
-- Tax calculator with CGST/SGST/IGST rules, rounding tests, and place-of-supply validation.
-- Separate sequential counters for estimates/proforma invoices and tax invoices.
-- Payment ledger: invoice total, received amount, previous balance, current outstanding.
-- PDF renderer using a fixed template engine with font embedding, measured text wrapping, cell padding, overflow detection, and PDF raster-preview tests.
-- Immutable issued-document snapshot and audit trail.
+- Customer master and validated address/GST profile.
+- Product/service catalogue and HSN/SAC.
+- GST calculator with CGST/SGST/IGST, place-of-supply validation and rounding tests.
+- Separate estimate/proforma and tax-invoice counters with collision prevention.
+- Payment ledger and outstanding balance reconciliation.
+- Fixed PDF template with embedded fonts, wrapping/overflow checks and visual regression tests.
+- Immutable issued-document snapshot and audit log.
 
 ### Cloud and dashboard
-- Local-first operation; cloud sync is optional and disabled until the user connects an account.
-- Proposed backend: authenticated API + PostgreSQL + object storage with row-level access controls.
-- Web dashboard mirrors approved mobile records and document status.
-- Google Drive backup through official user-authorized file picker/API; never store OAuth secrets in the repository.
-- Encrypt sensitive local data and use TLS for network transport.
-
-## Android 15 platform constraints
-- Microphone access requires RECORD_AUDIO and is subject to while-in-use restrictions.
-- A microphone foreground service cannot be started from the background in ordinary cases; start it while the app is visible and the user initiates capture.
-- Android 15 prohibits starting microphone foreground services from BOOT_COMPLETED.
-- Foreground services must show a user-visible notification and be used only for user-noticeable work.
-- WorkManager is for deferrable background jobs, not continuous microphone capture.
+- Optional authenticated API and PostgreSQL with tenant/row-level access controls.
+- Encrypted transport, explicit account connection and conflict resolution.
+- User-authorized Google Drive backup; no OAuth secrets in source control.
+- Human approval for consequential actions.
 
 ## Delivery phases
-### Phase 0 — Audit and baseline
-- Inspect all existing project files and workflows on this branch.
-- Record Gradle, Kotlin, SDK, package name, app permissions, current UI, and CI state.
-- Confirm main is untouched.
-- Build a clean baseline APK and record the workflow run and artifact before claiming success.
+1. Foundation: local tasks, customer master, invoice drafts, silent preference, JSON backup/restore. (Implemented checkpoint; CI verification required.)
+2. Data hardening: Room migration, encrypted storage, validation, automated backup/restore tests.
+3. Personal automation: explicit voice capture, date/time parsing, reminders and notification controls.
+4. Business operations: catalogue, tax engine, invoice PDF, payments and audit trail.
+5. AI core: server-side provider adapter, prompt/intent router, tool permissions, cost controls and approval gates.
+6. Integrations: optional Google Drive, Gmail, WhatsApp and mobile bridge via official user-authorized paths.
+7. Release: signing, device compatibility, security/privacy review, offline and restore tests.
 
-### Phase 1 — Silent foundation
-- App shell, navigation, dark/light support, silent response setting.
-- Local Room database and DataStore.
-- Text command inbox and task capture.
-- Exportable local backup and restore.
-
-### Phase 2 — User-initiated voice input
-- Push-to-talk control.
-- Visible recording state and persistent notification.
-- Speech-to-text transcript preview, edit, and submit.
-- Stop/cancel controls; no auto-start on boot.
-
-### Phase 3 — Business workspace
-- Customers, products, HSN, tax calculator, payment ledger.
-- Customer report import with validation.
-- Separate invoice/proforma numbering with collision prevention.
-- Radha Enterprises-style invoice renderer and PDF quality gate.
-
-### Phase 4 — Mobile bridge
-- Optional notification summaries from explicitly allowlisted apps.
-- User-triggered, narrowly scoped accessibility workflows.
-- Confirmation before sending messages, making payments, deleting, or changing account settings.
-
-### Phase 5 — Cloud dashboard and integrations
-- Authenticated sync and role-based access.
-- User-authorized Drive backup.
-- Dashboard, audit log, conflict resolution, and restore testing.
+## Android 15 constraints
+- Microphone access requires RECORD_AUDIO and is subject to while-in-use restrictions.
+- Start any microphone foreground service while app is visible and user initiates capture.
+- Do not start microphone foreground services from BOOT_COMPLETED.
+- Foreground services require a user-visible notification.
+- WorkManager is for deferrable work, not continuous microphone capture.
 
 ## Release quality gates
-- Unit tests for tax arithmetic, rounding, numbering, balance calculations, and permissions.
-- UI tests for silent mode and voice capture lifecycle.
-- PDF regression tests: no text/border intersection, no clipping, correct font embedding, QR/signature presence, and exact page count.
-- Offline tests and backup/restore test.
-- CI build must pass; APK artifact must be downloadable and installation-tested before release status is declared.
-
-## First implementation checkpoint
-The branch was created from main on 2026-11-02. No APK build or installation is claimed by this architecture document. The next engineering action is a branch-only source/workflow audit, followed by a baseline build.
+- Unit tests for data validation, GST arithmetic, rounding, numbering and balance calculations.
+- UI tests for task persistence, backup/restore and voice lifecycle.
+- PDF regression tests for clipping, font embedding, page count and content accuracy.
+- Offline, migration, restore and failure-recovery tests.
+- CI build pass, downloadable artifact, and real-device install/smoke test before calling a build release-ready.
