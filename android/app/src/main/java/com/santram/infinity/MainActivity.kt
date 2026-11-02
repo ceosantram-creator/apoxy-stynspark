@@ -79,6 +79,25 @@ private fun SantramOperatingSystem() {
     var silent by remember { mutableStateOf(prefs.getBoolean(SILENT_KEY, true)) }
     var status by remember { mutableStateOf("Local-first mode · This device") }
 
+    fun persist(updated: OsData) {
+        val saved = prefs.edit().putString(DATA_KEY, encodeData(updated).toString()).commit()
+        if (saved) {
+            data = updated
+            status = "Saved securely on this device"
+        } else {
+            status = "Save failed · Please retry"
+        }
+    }
+
+    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!spoken.isNullOrBlank()) {
+            persist(data.copy(tasks = listOf(TaskRecord(UUID.randomUUID().toString(), spoken, System.currentTimeMillis(), false)) + data.tasks))
+            status = "Voice command captured and saved"
+        } else if (result.resultCode == android.app.Activity.RESULT_OK) status = "No speech was recognized"
+    }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     fun startVoiceCapture() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -100,25 +119,6 @@ private fun SantramOperatingSystem() {
         status = "Alarm scheduled for " + SimpleDateFormat("hh:mm a", Locale.getDefault()).format(alarmTime.time)
         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
-
-    fun persist(updated: OsData) {
-        val saved = prefs.edit().putString(DATA_KEY, encodeData(updated).toString()).commit()
-        if (saved) {
-            data = updated
-            status = "Saved securely on this device"
-        } else {
-            status = "Save failed · Please retry"
-        }
-    }
-
-    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!spoken.isNullOrBlank()) {
-            persist(data.copy(tasks = listOf(TaskRecord(UUID.randomUUID().toString(), spoken, System.currentTimeMillis(), false)) + data.tasks))
-            status = "Voice command captured and saved"
-        } else if (result.resultCode == android.app.Activity.RESULT_OK) status = "No speech was recognized"
-    }
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
