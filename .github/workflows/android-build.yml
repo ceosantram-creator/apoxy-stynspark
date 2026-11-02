@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - build-5-infinity-core
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
