@@ -1,0 +1,17 @@
+/* APOXY cloud authentication bootstrap. Only public project URL + publishable key belong in this browser. */
+(()=>{'use strict';
+const $=id=>document.getElementById(id), CFG='apoxy_supabase_public_config_v1';
+let client=null, currentUser=null;
+const say=(id,msg)=>{const e=$(id);if(e)e.textContent=msg};
+function config(){try{return JSON.parse(localStorage.getItem(CFG)||'null')}catch{return null}}
+function connect(c){if(!window.supabase?.createClient)throw Error('Supabase client library did not load. Refresh and try again.');client=window.supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});return client}
+function validUrl(url){const u=new URL(url);return u.protocol==='https:'&&u.hostname.endsWith('.supabase.co')&&u.pathname==='/';}
+async function refresh(){if(!client)return;const {data,error}=await client.auth.getSession();if(error)throw error;currentUser=data.session?.user||null;say('cloudAuthStatus',currentUser?'Signed in as '+currentUser.email:'Not signed in.');}
+async function run(action){try{if(!client)throw Error('Save your Supabase Project URL and publishable key first.');const email=$('cloudEmail').value.trim(),password=$('cloudPassword').value;if(action==='signup'||action==='signin'){if(!email||!password)throw Error('Enter email and password.');if(password.length<8)throw Error('Use a password with at least 8 characters.');const res=action==='signup'?await client.auth.signUp({email,password}):await client.auth.signInWithPassword({email,password});if(res.error)throw res.error;if(action==='signup'&&!res.data.session)say('cloudAuthStatus','Account created. Check your email to confirm, then sign in.');else await refresh();}
+else if(action==='signout'){const {error}=await client.auth.signOut();if(error)throw error;currentUser=null;await refresh();}
+else if(action==='workspace'){if(!currentUser)throw Error('Sign in first.');const name=$('cloudWorkspaceName').value.trim();if(name.length<2)throw Error('Enter a company name.');const {data,error}=await client.rpc('create_apoxy_workspace',{workspace_name:name});if(error)throw error;say('cloudAuthStatus','Workspace created. ID: '+data+'. Save this ID securely for the next cloud-sync step.');}}
+catch(e){say('cloudAuthStatus','Error: '+(e.message||String(e)));}}
+$('cloudConfigForm')?.addEventListener('submit',async e=>{e.preventDefault();try{const url=$('cloudProjectUrl').value.trim(),key=$('cloudPublishableKey').value.trim();if(!validUrl(url))throw Error('Use the exact HTTPS Supabase project URL ending in .supabase.co.');if(key.length<20)throw Error('Publishable key looks incomplete.');localStorage.setItem(CFG,JSON.stringify({url,key}));connect({url,key});say('cloudConnectionStatus','Project settings saved on this device. Connecting…');await refresh();say('cloudConnectionStatus','Supabase client connected. Authentication is ready.');}catch(err){say('cloudConnectionStatus','Connection setup error: '+err.message);}});
+$('cloudSignUp')?.addEventListener('click',()=>run('signup'));$('cloudSignIn')?.addEventListener('click',()=>run('signin'));$('cloudSignOut')?.addEventListener('click',()=>run('signout'));$('cloudCreateWorkspace')?.addEventListener('click',()=>run('workspace'));
+const c=config();if(c){$('cloudProjectUrl').value=c.url;$('cloudPublishableKey').value=c.key;try{connect(c);say('cloudConnectionStatus','Saved Supabase project configuration found.');refresh().catch(e=>say('cloudAuthStatus',e.message));}catch(e){say('cloudConnectionStatus',e.message);}}
+})();
