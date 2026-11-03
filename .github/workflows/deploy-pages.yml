@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Check JavaScript syntax
-        run: node --check app.js && node --check trade.js
+        run: node --check app.js && node --check trade.js && node --check cloud-auth.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site artifact
