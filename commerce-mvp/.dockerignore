@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+!.env.example
+__pycache__
+.pytest_cache
+.venv
+*.pyc
+*.db
+*.sqlite*
+*.zip
+*.aurs-backup
+*.png
+data
+Mobile_*.png
+META_AD_MANUAL_LAUNCH.md
