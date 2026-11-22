@@ -7,7 +7,7 @@
 * SQLite and uploaded promo images reside together under `AURS_DATA_DIR`; a disk mount is ESSENTIAL for durability. Single uvicorn worker is deliberate.
 
 ## Required host secrets / production refusal
-1. `AURS_ENV=production` — production mode blocks startup unless all mandatory settings below are valid.
+1. `AURS_ENV=production` — production mode blocks startup unless all mandatory settings below are valid. For private staging only, explicitly set `AURS_STAGING_PREVIEW_ALLOW=1` and keep network access restricted.
 2. `AURS_PUBLIC_ORIGIN=https://your-owned-https-domain.example` — no path; used for CSRF `Origin` check.
 3. `AURS_COOKIE_SECURE=1` — HttpOnly, SameSite=strict admin session over HTTPS.
 4. `AURS_ADMIN_PASSWORD` — unique 20+ character secret, never a sample.
@@ -19,7 +19,7 @@
 ### Railway draft (NOT activated)
 * Create service from this subdirectory `commerce-mvp` only if and when approved; choose Dockerfile in that folder.
 * Attach a Railway Volume mounted at `/data`, ensure UID 10001 has write access (provider-specific permissions may require adjustment).
-* Keep `AURS_ENV=staging` and no public routing until authorized security verification, then separately approve production variables and domain.
+* Keep `AURS_ENV=staging` with `AURS_STAGING_PREVIEW_ALLOW=1` and **no public routing** until authorized security verification, then separately approve production variables and domain. The Docker startup refuses an unapproved non-production bind.
 * Configure environment secrets in Railway UI, NOT `.env` in Git.
 * Verify backup export from `/data` and restore into a fresh empty offline test directory. Note Railway volume cannot be assumed to be a multi-replica or cross-region backup.
 * Reference: https://docs.railway.com/volumes
