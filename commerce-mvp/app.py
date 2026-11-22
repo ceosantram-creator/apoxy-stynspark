@@ -45,8 +45,12 @@ DB = DATA / 'commerce.sqlite3'
 COOKIE_SECURE = os.getenv('AURS_COOKIE_SECURE','0') == '1'
 ADMIN_PASSWORD = os.getenv('AURS_ADMIN_PASSWORD', '')
 SECRET_KEY = os.getenv('AURS_SECRET_KEY', '')
-if len(ADMIN_PASSWORD) < 12 or len(SECRET_KEY) < 32:
-    raise RuntimeError('Set AURS_ADMIN_PASSWORD (12+ chars) and AURS_SECRET_KEY (32+ chars) before starting.')
+if (len(ADMIN_PASSWORD) < 12 or len(SECRET_KEY) < 32
+    or 'REPLACE' in ADMIN_PASSWORD.upper() or 'REPLACE' in SECRET_KEY.upper()
+    or ADMIN_PASSWORD == SECRET_KEY):
+    raise RuntimeError('Set unique non-placeholder AURS_ADMIN_PASSWORD (12+ chars) and AURS_SECRET_KEY (32+ chars).')
+if AURS_ENV == 'production' and (len(ADMIN_PASSWORD) < 20 or len(SECRET_KEY) < 48):
+    raise RuntimeError('Production needs a unique 20+ character admin password and 48+ character random secret key.')
 serializer = URLSafeTimedSerializer(SECRET_KEY, salt='aurs-admin-session-v1')
 app = FastAPI(title='AURS Commerce Network', docs_url=None, redoc_url=None)
 app.mount('/assets', StaticFiles(directory=ROOT / 'web'), name='assets')
