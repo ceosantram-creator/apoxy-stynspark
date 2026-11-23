@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#12252b">
+<title>AURS ∞ | Human × AI Command Front</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans Devanagari",Arial,sans-serif;color:#17252a;background:#f4f7f6}
+*{box-sizing:border-box}body{margin:0}button,textarea{font:inherit}button{cursor:pointer}
+header{background:#12252b;color:white;padding:25px max(18px,calc((100vw - 980px)/2))}
+header .tiny{font-size:12px;letter-spacing:.13em;color:#bddad4}h1{font-size:clamp(25px,5vw,38px);line-height:1.2;margin:10px 0}h2{font-size:19px;margin:0 0 12px}
+header p{max-width:650px;color:#d2e3df;line-height:1.6;margin:6px 0}
+.container{max-width:980px;margin:auto;padding:18px;display:grid;gap:16px}
+.card{background:white;border:1px solid #dfe7e3;border-radius:17px;padding:19px;box-shadow:0 4px 18px #163c3210}
+.sub{font-size:13px;color:#596b69}.help{font-size:14px;color:#435d56;line-height:1.6}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:white;border:1px solid #cbdad4;color:#19362e;border-radius:50px;padding:10px 14px}
+.chip[aria-pressed=true]{background:#174c45;color:white;border-color:#174c45}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.goal{border:1px solid #cbdad4;background:#f7fbf8;border-radius:13px;padding:14px;text-align:left;min-height:92px}
+.goal strong{display:block;font-size:15px;margin-bottom:5px}.goal small{display:block;color:#50665f;line-height:1.45}
+.goal[aria-pressed=true]{background:#e2f3eb;border:2px solid #216b59;padding:13px}
+.hero{background:#e7f3ef;border-radius:14px;padding:18px}
+.htext{font-size:21px;font-weight:750;line-height:1.4;margin:10px 0}
+.line{height:7px;background:#d6e5df;border-radius:9px;overflow:hidden;margin:15px 0}
+.fill{height:100%;background:#267d67;transition:width .2s}
+.step{font-size:13px;font-weight:600;color:#23644f}
+.strong{font-weight:700}button.primary{background:#195e50;border:1px solid #195e50;color:white}
+button.secondary{background:white;border:1px solid #a9c7ba;color:#1c5345}
+button.warn{border:1px solid #a96f34;background:#fff6e9;color:#704410}
+button.big{padding:12px 20px;border-radius:11px;font-weight:650}
+button:focus-visible,textarea:focus-visible{outline:3px solid #7dbaae;outline-offset:2px}
+textarea{width:100%;border-radius:10px;border:1px solid #b8d0c6;padding:13px;min-height:74px;resize:vertical}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f5;border:1px solid #dbe7e1;border-radius:11px;padding:13px;font-family:inherit;font-size:13px;line-height:1.6;max-height:260px;overflow:auto}
+.flag{display:inline-block;font-size:12px;background:#f1f5f3;border:1px solid #dbe5df;border-radius:50px;padding:6px 10px}
+.safe{color:#1e6655}.caution{color:#8d511d}
+.sep{border:0;border-top:1px solid #e7efeb;margin:17px 0}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat div{border:1px solid #e2ece7;border-radius:10px;padding:12px}
+.stat b{font-size:22px;display:block}.stat span{font-size:12px;color:#506660}
+#history{padding-left:20px;margin:8px 0;line-height:1.7;color:#435d56;font-size:13px}
+footer{padding:20px;color:#58736a;text-align:center;font-size:12px}
+@media(min-width:700px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.two{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}}
+@media(max-width:420px){.card{padding:15px}.big{width:100%}.stat{grid-template-columns:1fr 1fr}.stat div:last-child{grid-column:1 / -1}}
+</style></head>
+<body>
+<header><div class="tiny">AURS ∞ / HUMAN × AI / PRIVATE-FIRST</div>
+<h1>सोच आपकी। दिशा हमारी साझी।</h1>
+<p>एक उद्देश्य चुनिए, NEXT दबाइए। यह स्क्रीन अगले कदम का ड्राफ्ट बनाती है; ग्राहक को संदेश, भुगतान, प्रकाशन या उत्पादन स्वयं नहीं करती।</p></header>
+<main class="container">
+<section class="card">
+<h2>1. किस ब्रांड पर काम करें?</h2>
+<div class="pills" id="brands"></div>
+<p class="sub">आपका चुनाव इस डिवाइस पर सुरक्षित रहेगा। यहाँ कोई ग्राहक विवरण सर्वर पर नहीं भेजा जाता।</p>
+</section>
+<section class="card">
+<h2>2. आज का उद्देश्य चुनिए</h2>
+<div class="grid" id="goals"></div>
+</section>
+<div class="two">
+<section class="card">
+<h2>3. आपका अगला सही कदम</h2>
+<div class="hero">
+<div class="row"><span class="flag" id="status">तैयारी</span><span class="flag" id="scope">निजी ड्राफ्ट</span></div>
+<div class="line"><div class="fill" id="bar" style="width:0%"></div></div>
+<div class="step" id="counter">चरण 1 / 6</div>
+<div class="htext" id="stepTitle"></div>
+<div class="help" id="stepAsk"></div>
+<p class="sub"><span class="strong">तैयार होने वाला आउटपुट:</span> <span id="deliverable"></span></p>
+</div>
+<p class="sub" style="margin-bottom:6px">ऐच्छिक जानकारी (अनिवार्य नहीं)</p>
+<textarea id="note" maxlength="500" placeholder="उदाहरण: 30×30 mm, ₹5 लक्ष्य, 2 मटेरियल, 20–40 स्टोन"></textarea>
+<div class="row" style="margin-top:12px">
+<button class="big primary" id="next">NEXT — प्रॉम्प्ट तैयार करें</button>
+<button class="big secondary" id="complete">यह तैयारी पूरी</button>
+</div>
+<p id="feedback" class="help" role="status"></p>
+<hr class="sep">
+<h2>ChatGPT के लिए तैयार कमांड</h2>
+<pre id="prompt" aria-live="polite">NEXT दबाने पर यहाँ संदर्भ-आधारित कमांड आएगी।</pre>
+<div class="row">
+<button class="big secondary" id="copy">कमांड कॉपी करें</button>
+<a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT खोलें</a>
+</div>
+</section>
+<aside>
+<section class="card">
+<h2>नियंत्रण और सुरक्षा</h2>
+<div class="stat">
+<div><b>3</b><span>ब्रांड</span></div><div><b>6</b><span>वर्कफ़्लो</span></div><div><b id="localCount">0</b><span>स्थानीय कदम</span></div>
+</div>
+<p class="help"><span class="safe strong">चैट ड्राफ्ट, लागत-विश्लेषण और योजना:</span> सहायक कार्य।<br><span class="caution strong">पैसे, प्रकाशन, डेटा शेयरिंग, ऑर्डर, डिस्पैच:</span> अलग मानव स्वीकृति और वास्तविक सिस्टम सत्यापन जरूरी।</p>
+<p class="sub">यह स्वतंत्र offline-first front है, लाइव AI API, CRM sync या 24×7 एजेंट नहीं।</p>
+</section>
+<section class="card" style="margin-top:16px">
+<h2>मेरे लोकल रिकॉर्ड</h2>
+<ol id="history"><li>अभी कोई कदम नहीं</li></ol>
+<div class="row">
+<button class="chip" id="export">JSON बैकअप</button>
+<button class="chip" id="importBtn">बैकअप जोड़ें</button>
+<input id="importFile" type="file" accept=".json,application/json" hidden>
+<button class="chip" id="reset">रीसेट</button>
+</div>
+<p class="sub">JSON में आपकी निजी जानकारी हो सकती है। इसे सार्वजनिक repo या WhatsApp status में न रखें।</p>
+</section>
+</aside></div>
+</main>
+<footer>AURS ∞ · SANTRAM INDUSTRIES · STYNSPARK · मानव अनुमोदन सर्वोपरि · v1.0 · 23 Nov 2026</footer>
+<script>
+(function(){
+"use strict";
+var KEY="aurs-human-ai-front-v1";
+var brandNames=["AURS","SANTRAM INDUSTRIES","STYNSPARK"];
+var flows=[
+{id:"create",label:"नई क्रिएशन",desc:"यूनिक डिजाइन, मॉकअप, तकनीकी फाइल",steps:[
+["ग्राहक का मूल्य तय करें","किस ग्राहक और किस समस्या के लिए नया उत्पाद बनाना है? उपलब्ध जानकारी से एक व्यावहारिक brief बनाएं।","Product brief",false],
+["मौलिक विकल्प बनाएं","3 स्वतंत्र original creative concepts बनाएं; तकनीक/आकार/अलग पहचान दर्ज करें।","3 concept directions",false],
+["वास्तविकता जाँचें","मटेरियल, उपलब्ध मशीन, न्यूनतम clearances, production feasibility और sample risk जाँचें।","Manufacturing feasibility",false],
+["लागत और QC","सत्यापित कीमतें अलग और अनुमान अलग; BOM, QC और target margin बनाएँ।","Costing + QC draft",false],
+["ग्राहक-अनुमोदन","कौन-सा preview ग्राहक को भेजा जाए? निजी तकनीकी फाइलें न भेजें।","Approval-ready proof",true],
+["स्वीकृति के बाद उत्पादन","केवल वास्तविक लिखित स्वीकृति, sample test और सत्यापित specs मिलने पर उत्पादन शुरू करें।","Production release checklist",true]]},
+{id:"quote",label:"कोटेशन",desc:"लागत, GST, margin और ऑफ़र",steps:[
+["स्पेसिफिकेशन","साइज, मात्रा, मैटेरियल, प्रक्रिया और ग्राहक अनुरोध एकत्र करें।","Quote input sheet",false],
+["BOM व लागत","rate, labour, wastage, packing, shipping और tax assumptions लिखें।","Costing table",false],
+["व्यवहार्यता","supplier और capacity से rates validate करें; risk buffer तय करें।","Validation summary",false],
+["मूल्य विकल्प","पारदर्शी तीन price bands के profit और unit economics बनाएं।","3 pricing choices",false],
+["बिक्री-स्वीकृति","ऑफर की भाषा, validity और terms मानव द्वारा approve करवाएं।","Customer-ready quotation",true],
+["ग्राहक को भेजना","बिना अलग स्पष्ट आदेश email/WhatsApp न भेजें और contract commit न करें।","Dispatch approval",true]]},
+{id:"sales",label:"नए ग्राहक",desc:"B2B targeting, outreach और CRM",steps:[
+["आदर्श ग्राहक","segment, geography, buying need, budget और compliant contact rule तय करें।","Ideal customer profile",false],
+["मूल्य प्रस्ताव","प्रॉडक्ट, sample, MOQ और lead time का मजबूत मगर सत्य प्रस्ताव लिखें।","Value proposition",false],
+["लीड रिसर्च","आधिकारिक कंपनी सूचना, अनुमति और स्रोत जाँचें; fabricated leads न बनाएं।","Lead verification plan",false],
+["मेसिज ड्राफ्ट","Hindi/English में ethical outreach और follow-up तैयार करें।","Outreach drafts",false],
+["आउटरीच अनुमोदन","किससे संपर्क हो और किस चैनल पर, यह पहले मंजूर करें।","Approved outreach queue",true],
+["वास्तविक भेजना","केवल उपलब्ध connected app में अलग approval के साथ संदेश भेजें।","Send authorization",true]]},
+{id:"production",label:"उत्पादन",desc:"DTF, hotfix, velvet और apparel",steps:[
+["ऑर्डर रिकॉर्ड","Approved artwork, size, quantity, due date, owner सुनिश्चित करें।","Order checklist",false],
+["मटेरियल योजना","BOM, consumption, stock, shrinkage, wastage के आंकड़े जाँचें।","Material plan",false],
+["लाइन प्लान","मशीन क्षमता, batch, labour और QC gates तय करें।","Production schedule",false],
+["प्री-प्रोडक्शन QC","Sample, heat test, wash test और सभी approval evidence जाँचें।","QC sign-off sheet",false],
+["प्रोडक्शन स्वीकृति","अंतिम artwork और शर्तें verified हों तभी मानव release करे।","Production release",true],
+["डिस्पैच स्वीकृति","मात्रा, invoice, address और payment terms verify कर dispatch approve करें।","Dispatch checklist",true]]},
+{id:"marketing",label:"वेबसाइट व मार्केटिंग",desc:"Content, web, WhatsApp और Meta",steps:[
+["पोजिशनिंग","ब्रांड कहानी, target audience और उपयोगिता के आधार पर positioning बनाएँ।","Marketing brief",false],
+["फ्रंट UX","Mobile-first Hindi/English user journey, enquiry and CTA map बनाएँ।","Website page map",false],
+["रचनात्मक सामग्री","Original product-first visuals और truthful claim drafts बनाएँ।","Creative content brief",false],
+["परीक्षण योजना","₹0 organic-first; paid ads के लिए budget और ROI assumptions जाँचें।","Campaign test plan",false],
+["कंटेंट स्वीकृति","Private details, trademarks, consent, pricing और spend check करें।","Publish approval",true],
+["पब्लिश / ऐड चालू","होस्टिंग, अकाउंट access और स्पष्ट approval के बिना launch न करें।","Release checklist",true]]},
+{id:"global",label:"विश्व व्यापार",desc:"Ethical global buyers और export readiness",steps:[
+["देश व ग्राहक","B2B अवसर, आयात नियम और international target fit चुनें।","Market qualification brief",false],
+["कानूनी जाँच","GST, IEC/export, customs, sanctions, privacy, IP की applicable checks बनाएँ।","Compliance checklist",false],
+["उत्पाद व क्षमता","MOQ, sampling, landed costs, quality और lead times validate करें।","Export feasibility",false],
+["डील संरचना","INCOTERMS, currency, payment security, quality terms और quote options बनाएं।","Deal framework draft",false],
+["शर्तें स्वीकृत","Legal, bank, buyer and credit risk पर मानव review आवश्यक।","Negotiation approval",true],
+["अंतरराष्ट्रीय डील","Signed contract, funds evidence और verified logistics के बिना execute न करें।","Order authorization",true]]}
+];
+var state={brand:"SANTRAM INDUSTRIES",goal:"create",progress:{},note:"",history:[]};
+try{var loaded=JSON.parse(localStorage.getItem(KEY)||"null");if(loaded&&brandNames.includes(loaded.brand)&&flows.some(function(f){return f.id===loaded.goal;})){state.brand=loaded.brand;state.goal=loaded.goal;state.progress=loaded.progress&&typeof loaded.progress==="object"?loaded.progress:{};state.note=typeof loaded.note==="string"?loaded.note.slice(0,500):"";state.history=Array.isArray(loaded.history)?loaded.history.slice(-30):[];}}catch(e){}
+function elt(id){return document.getElementById(id);}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){elt("feedback").textContent="इस ब्राउज़र में सेव नहीं हो पाया; JSON बैकअप रखें।";}}
+function current(){return flows.find(function(f){return f.id===state.goal;})||flows[0];}
+function stage(){return Math.max(0,Math.min(5,Number(state.progress[state.brand+"::"+state.goal])||0));}
+function makeButton(text,on,active,cls){var b=document.createElement("button");b.type="button";b.textContent=text;b.className=cls;b.setAttribute("aria-pressed",String(active));b.addEventListener("click",on);return b;}
+function log(action){state.history.unshift({when:new Date().toLocaleString("hi-IN"),what:action});state.history=state.history.slice(0,30);}
+function render(){
+var brands=elt("brands");brands.replaceChildren();brandNames.forEach(function(n){brands.append(makeButton(n,function(){state.brand=n;save();render();},state.brand===n,"chip"));});
+var goals=elt("goals");goals.replaceChildren();flows.forEach(function(f){var b=makeButton("",function(){state.goal=f.id;save();render();},state.goal===f.id,"goal");var strong=document.createElement("strong");strong.textContent=f.label;var sm=document.createElement("small");sm.textContent=f.desc;b.append(strong,sm);goals.append(b);});
+var f=current(),s=stage(),item=f.steps[s];elt("counter").textContent="चरण "+(s+1)+" / 6";elt("bar").style.width=((s+1)*100/6)+"%";
+elt("status").textContent=s>=4?"मानव स्वीकृति आवश्यक":"सुरक्षित तैयारी";
+elt("scope").textContent=state.brand+" · "+f.label;
+elt("stepTitle").textContent=item[0];elt("stepAsk").textContent=item[1];elt("deliverable").textContent=item[2];
+elt("note").value=state.note;elt("complete").textContent=s<4?"यह तैयारी पूरी":(s===4?"मैंने ऑफलाइन स्वीकृत किया":"बाहरी कार्य बाकी");
+elt("complete").disabled=s===5;
+elt("localCount").textContent=String(state.history.length);
+var ol=elt("history");ol.replaceChildren();(state.history.length?state.history.slice(0,7):[{what:"अभी कोई कदम नहीं",when:""}]).forEach(function(h){var li=document.createElement("li");li.textContent=h.what+(h.when?" · "+h.when:"");ol.append(li);});
+}
+function prompt(){
+var f=current(),s=stage(),a=f.steps[s];
+var p="AURS ∞ HUMAN × AI COMMAND\n"+
+"Brand: "+state.brand+"\nWorkflow: "+f.label+"\nCurrent stage "+(s+1)+"/6: "+a[0]+"\n"+
+"Human objective: "+(state.note||"दिए गए ब्रांड और चरण के आधार पर सबसे उपयोगी अगला सुरक्षित कदम")+"\n"+
+"Action: "+a[1]+"\nRequired draft: "+a[2]+"\n"+
+"Requirements: Previous verified context where available; original creation; value to customer; technical feasibility; specific cost assumptions, QC, risks, privacy, international legal compliance, minimum recurring costs. Separate facts from estimates.\n"+
+"Respond in concise Hindi, with ONE next clickable choice where possible. Complete the highest-value feasible draft NOW. Do not claim actual API automation, publishing, sending, manufacturing, payment, global mind reading or access to all past chats. Explicit human approval for external actions.";
+elt("prompt").textContent=p;log("NEXT: "+state.brand+" / "+f.label+" / चरण "+(s+1));save();render();
+elt("feedback").textContent="कमांड तैयार है। कॉपी करके ChatGPT में चलाएँ। इस पेज ने कोई बाहरी कार्रवाई नहीं की।";
+}
+elt("next").addEventListener("click",prompt);
+elt("complete").addEventListener("click",function(){
+var s=stage();if(s===5)return;
+if(s===4&&!confirm("केवल इस डिवाइस में स्वीकृति दर्ज होगी। कोई वास्तविक संदेश/पेमेंट/प्रकाशन/प्रोडक्शन नहीं होगा। जारी रखें?"))return;
+state.progress[state.brand+"::"+state.goal]=s+1;log(state.brand+" / "+current().label+": चरण "+(s+1)+" स्थानीय रूप से पूर्ण");save();render();
+elt("feedback").textContent=s===4?"स्थानीय स्वीकृति दर्ज। बाहरी कार्य अभी नहीं हुआ।":"अगला चरण खुल गया।";
+});
+elt("note").addEventListener("input",function(e){state.note=e.target.value.slice(0,500);save();});
+elt("copy").addEventListener("click",async function(){
+var txt=elt("prompt").textContent;if(!txt||txt.indexOf("NEXT दबाने")===0){elt("feedback").textContent="पहले NEXT दबाएँ।";return;}
+try{await navigator.clipboard.writeText(txt);elt("feedback").textContent="कमांड कॉपी हुई।";}catch(e){var t=document.createElement("textarea");t.value=txt;document.body.append(t);t.select();var ok=document.execCommand("copy");t.remove();elt("feedback").textContent=ok?"कमांड कॉपी हुई।":"कॉपी प्रतिबंधित है; ऊपर का टेक्स्ट चुनें।";}
+});
+elt("export").addEventListener("click",function(){var b=new Blob([JSON.stringify({version:1,exported:new Date().toISOString(),state:state},null,2)],{type:"application/json"});var u=URL.createObjectURL(b);var a=document.createElement("a");a.href=u;a.download="aurs-command-backup.json";a.click();setTimeout(function(){URL.revokeObjectURL(u);},1000);});
+elt("importBtn").addEventListener("click",function(){elt("importFile").click();});
+elt("importFile").addEventListener("change",async function(e){var file=e.target.files[0];if(!file)return;if(file.size>200000){elt("feedback").textContent="200 KB से बड़ी backup स्वीकार नहीं।";return;}
+try{var data=JSON.parse(await file.text());var st=data.state;if(!data||data.version!==1||!st||!brandNames.includes(st.brand)||!flows.some(function(f){return f.id===st.goal;})||!Array.isArray(st.history))throw Error("bad backup");
+if(!confirm("इस डिवाइस की मौजूदा लोकल स्थिति को इस बैकअप से बदलें?"))return;
+state={brand:st.brand,goal:st.goal,progress:st.progress&&typeof st.progress==="object"?st.progress:{},note:typeof st.note==="string"?st.note.slice(0,500):"",history:st.history.slice(-30).map(function(h){return {when:String(h.when||"").slice(0,50),what:String(h.what||"").slice(0,180)};})};save();render();elt("feedback").textContent="बैकअप जोड़ा गया।";}catch(err){elt("feedback").textContent="अमान्य JSON बैकअप।";}e.target.value="";});
+elt("reset").addEventListener("click",function(){if(!confirm("इस डिवाइस पर इस Front का पूरा रिकॉर्ड मिटाना है?"))return;state={brand:"SANTRAM INDUSTRIES",goal:"create",progress:{},note:"",history:[]};save();render();elt("prompt").textContent="NEXT दबाने पर यहाँ संदर्भ-आधारित कमांड आएगी।";elt("feedback").textContent="लोकल रिकॉर्ड रीसेट हुआ।";});
+render();
+})();
+</script>
+</body></html>
