@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#123a35">
+<title>AURS ∞ | Business Command Engine v2</title>
+<style>
+:root{font-family:system-ui,"Noto Sans Devanagari",Arial,sans-serif;color:#16322e;background:#f3f7f5}*{box-sizing:border-box}
+body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}
+header{background:#103932;color:white;padding:24px max(16px,calc((100vw - 1050px)/2))}
+header h1{font-size:clamp(23px,5vw,34px);margin:8px 0}header p{font-size:14px;color:#d3e9e3;max-width:780px;line-height:1.6}
+main{max-width:1050px;margin:auto;padding:16px;display:grid;gap:13px}
+.card{background:white;border:1px solid #d5e5df;border-radius:16px;padding:17px;box-shadow:0 3px 10px #092f2710}
+h2{font-size:19px;margin:0 0 13px}h3{font-size:16px;margin:0 0 8px}
+.muted{font-size:13px;color:#5b716a;line-height:1.5}.important{color:#77521b}.ok{color:#135c48}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.between{justify-content:space-between}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.field{display:grid;gap:5px}.field label{font-size:12px;font-weight:650}
+input,select,textarea{border:1px solid #bcd0c8;background:white;border-radius:10px;padding:11px;width:100%;min-width:0;color:#193e34}
+textarea{min-height:65px;resize:vertical}input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid #85c9b5;outline-offset:2px}
+.btn{padding:11px 14px;border-radius:11px;border:1px solid #b1cfc3;background:#f3faf6;color:#164438;font-weight:650}
+.primary{background:#14634f;color:white;border-color:#14634f}.danger{border-color:#e6b4a5;color:#8f372b;background:#fff6f3}
+.chip{padding:9px 12px;border:1px solid #b1c9c0;background:white;border-radius:30px;color:#183c32}
+.chip[aria-pressed=true]{background:#165f4c;color:white;border-color:#165f4c}
+.pill{display:inline-flex;padding:4px 9px;border:1px solid #d5e3dd;border-radius:20px;background:#f5f9f7;font-size:12px}
+#projects{display:grid;gap:11px}
+.project{border:1px solid #d9e6e0;border-radius:14px;padding:14px;display:grid;gap:11px}
+.project.active{border:2px solid #297d63;padding:13px;background:#fcfffd}
+.project .name{font-weight:750;line-height:1.35}
+.progress{height:7px;background:#dbe8e1;border-radius:20px;overflow:hidden}
+.progress>i{display:block;height:100%;background:#2e9473}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:5px}.checks label{font-size:12px;display:flex;align-items:center;gap:5px}.checks input{width:auto}
+.summary{border-radius:12px;background:#e9f4ee;padding:14px;line-height:1.6}
+.money{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.money div{padding:11px;border:1px solid #cbded3;border-radius:11px;background:white}
+.money b{display:block;font-size:20px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:310px;overflow:auto;background:#f1f5f3;border:1px solid #d9e6df;border-radius:10px;padding:13px;font-size:12px;line-height:1.65}
+footer{padding:15px;text-align:center;font-size:12px;color:#5b766d}
+details>summary{font-weight:700;cursor:pointer}
+.hidden{display:none!important}
+@media(min-width:800px){.cols{display:grid;grid-template-columns:1.08fr .92fr;gap:13px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:440px){.card{padding:13px}.grid{grid-template-columns:1fr 1fr}.money b{font-size:17px}.btn.wide{width:100%}}
+</style>
+</head>
+<body>
+<header><small>AURS ∞ / SANTRAM INDUSTRIES / STYNSPARK / PRIVATE-FIRST</small>
+<h1>Business Command Engine · NEXT 02</h1>
+<p>आप काम चुनिए। सिस्टम दर्ज किए गए ऑर्डर, स्टेज, अप्रूवल और लागत के आधार पर अगला कमांड तैयार करेगा। यह संस्करण केवल आपके ब्राउज़र में चलता है; संदेश, भुगतान, उत्पादन या प्रकाशन अपने आप नहीं करता।</p>
+</header>
+<main>
+<section class="card">
+<div class="row between"><h2>केंद्रीय बिजनेस नियंत्रण</h2><span class="pill" id="mode">Offline / Browser-local</span></div>
+<div class="row" id="brands"></div>
+<p class="muted">यह डेटा उसी ब्राउज़र में रहता है, encrypted नहीं है और दूसरे मोबाइल पर अपने आप sync नहीं होगा। ग्राहक का नाम/नंबर/व्यापारिक गोपनीय डेटा इस prototype में न डालें।</p>
+<div class="row">
+<span class="pill" id="projectCount">प्रोजेक्ट: 0</span>
+<span class="pill" id="pendingCount">अप्रूवल बाकी: 0</span>
+<span class="pill" id="dispatchCount">डिस्पैच बाकी: 0</span>
+</div>
+</section>
+<div class="cols">
+<div>
+<section class="card">
+<div class="row between"><h2>प्रोजेक्ट / ऑर्डर</h2><button class="btn primary" id="newProject">+ नया रिकॉर्ड</button></div>
+<div class="field" style="margin-bottom:10px"><label for="search">रिकॉर्ड खोजें</label><input id="search" placeholder="नाम, कोड, मटेरियल..."></div>
+<div id="projects"></div>
+</section>
+<section class="card" style="margin-top:13px">
+<details id="editorBox"><summary id="editorTitle">नया प्रोजेक्ट दर्ज करें / संपादित करें</summary>
+<p class="muted">केवल आंतरिक alias लिखें। ग्राहक की संवेदनशील जानकारी न लिखें।</p>
+<form id="editor">
+<div class="grid">
+<div class="field"><label for="pname">आंतरिक प्रोजेक्ट नाम *</label><input id="pname" maxlength="80" required placeholder="उदा. CCCQ 30mm Batch"></div>
+<div class="field"><label for="pbrand">ब्रांड</label><select id="pbrand"><option>AURS</option><option>SANTRAM INDUSTRIES</option><option>STYNSPARK</option></select></div>
+<div class="field"><label for="ptype">प्रक्रिया</label><select id="ptype"><option>DTF</option><option>Rhinestone / Hotfix</option><option>Velvet / Laser</option><option>Patches / Rubber</option><option>Apparel</option><option>Surplus stock</option><option>Digital / Other</option></select></div>
+<div class="field"><label for="pqty">मात्रा (पीस)</label><input id="pqty" type="number" min="1" max="10000000" step="1" value="100"></div>
+<div class="field"><label for="powner">उत्तरदायी भूमिका</label><input id="powner" maxlength="50" placeholder="उदा. Production lead"></div>
+<div class="field"><label for="pdue">लक्ष्य तारीख</label><input id="pdue" type="date"></div>
+<div class="field"><label for="pstage">वर्तमान चरण</label><select id="pstage"><option value="enquiry">Enquiry / Brief</option><option value="design">Design & Proof</option><option value="costing">Costing / Quote</option><option value="approval">Customer Approval</option><option value="production">Production / QC</option><option value="dispatch">Dispatch</option><option value="done">Closed</option></select></div>
+<div class="field"><label for="papproval">ग्राहक की स्थिति</label><select id="papproval"><option value="pending">अप्रूवल बाकी</option><option value="approved">अप्रूवल मिला (स्वयं दर्ज)</option><option value="rejected">बदलाव माँगा</option></select></div>
+<div class="field"><label for="pdispatch">डिस्पैच स्थिति</label><select id="pdispatch"><option value="not-ready">तैयार नहीं</option><option value="ready">तैयार (स्वयं दर्ज)</option><option value="sent">डिस्पैच किया (स्वयं दर्ज)</option></select></div>
+</div>
+<div class="field" style="margin-top:10px"><label for="pnotes">अगला जरूरी काम / नोट</label><textarea id="pnotes" maxlength="600" placeholder="गैर-गोपनीय स्पेसिफिकेशन..."></textarea></div>
+<h3 style="margin-top:15px">कोटेशन के लिए अनुमानित लागत</h3>
+<div class="grid">
+<div class="field"><label for="pmaterial">मटेरियल ₹/पीस</label><input id="pmaterial" type="number" min="0" max="1000000" step=".01" value="0"></div>
+<div class="field"><label for="plabour">लेबर ₹/पीस</label><input id="plabour" type="number" min="0" max="1000000" step=".01" value="0"></div>
+<div class="field"><label for="pshipping">अन्य/शिपिंग ₹/पीस</label><input id="pshipping" type="number" min="0" max="1000000" step=".01" value="0"></div>
+<div class="field"><label for="pwaste">मटेरियल वेस्टेज %</label><input id="pwaste" type="number" min="0" max="100" step=".1" value="5"></div>
+<div class="field"><label for="pmargin">Gross margin %</label><input id="pmargin" type="number" min="0" max="95" step=".1" value="25"></div>
+<div class="field"><label for="pgst">GST % (manual)</label><input id="pgst" type="number" min="0" max="40" step=".1" value="18"></div>
+</div>
+<p class="muted">Gross margin = (selling price − cost) ÷ selling price. GST केवल तभी लगाएँ जब आपके वास्तविक supply पर लागू हो। सभी rates पहले verify करें।</p>
+<div class="row">
+<button class="btn primary wide" type="submit">रिकॉर्ड सुरक्षित करें</button>
+<button class="btn" type="button" id="cancelEdit">रद्द करें</button>
+<button class="btn danger" type="button" id="deleteProject">रिकॉर्ड हटाएँ</button>
+</div>
+</form></details>
+</section>
+</div>
+<div>
+<section class="card">
+<h2>Active Project · NEXT</h2>
+<div id="selection" class="summary">एक प्रोजेक्ट बनाइए या चुनिए। उसी के आधार पर प्राथमिकता और अगला deliverable तय होगा।</div>
+<div class="money" id="totals" style="margin-top:10px"></div>
+<p class="muted" id="nextRisk"></p>
+<div class="row">
+<button class="btn primary wide" id="next">NEXT — प्रोजेक्ट कमांड बनाएँ</button>
+<button class="btn" id="copy">कॉपी करें</button>
+</div>
+<p class="muted" id="feedback" role="status"></p>
+<pre id="prompt" aria-live="polite">NEXT दबाने पर सुरक्षित, संदर्भ-आधारित कमांड यहाँ बनेगी।</pre>
+<p class="muted">यह ChatGPT को अपने आप नहीं भेजता। कमांड कॉपी करके अपनी ChatGPT चैट में इस्तेमाल करें।</p>
+</section>
+<section class="card" style="margin-top:13px">
+<h2>प्राइवेट फाइल चेकलिस्ट</h2>
+<p class="muted">केवल फाइल मौजूद होने का संकेत; फाइलें यहाँ upload नहीं होतीं।</p>
+<div class="checks" id="fileChecks"></div>
+<p class="muted">प्रोडक्शन शुरू करने के लिए ग्राहक की बाहरी स्वीकृति, approved artwork, sample/QC और वास्तविक ऑपरेशनल अनुमति जरूरी है। स्थानीय tick अंतिम प्रमाण नहीं है।</p>
+</section>
+<section class="card" style="margin-top:13px">
+<h2>लोकल डेटा नियंत्रण</h2>
+<div class="row">
+<button class="btn" id="export">JSON बैकअप</button>
+<button class="btn" id="importBtn">JSON इम्पोर्ट</button>
+<input id="importFile" type="file" accept=".json,application/json" class="hidden">
+<button class="btn danger" id="clearAll">पूरा लोकल डेटा मिटाएँ</button>
+</div>
+<p class="muted">वर्तमान डिवाइस पर ही सुरक्षित। साझा उपकरण पर निजी रिकॉर्ड न रखें। बैकअप public GitHub/WhatsApp में अपलोड न करें।</p>
+</section>
+</div>
+</div>
+</main>
+<footer>AURS ∞ · Human judgment + AI-assisted preparation · 23 Nov 2026 · local-only v2 · no paid services / no auto-send</footer>
+<script>
+(function(){
+'use strict';
+var K='aurs-business-command-v2', brands=['AURS','SANTRAM INDUSTRIES','STYNSPARK'];
+var stages=['enquiry','design','costing','approval','production','dispatch','done'];
+var names={enquiry:'Brief',design:'Design',costing:'Costing',approval:'Customer Approval',production:'Production / QC',dispatch:'Dispatch',done:'Closed'};
+var checklist=['डिजाइन प्रूफ','ग्राहक अप्रूवल रिकॉर्ड','प्रोडक्शन मास्टर','स्टोन/मटेरियल मैप','QC रिपोर्ट','डिस्पैच दस्तावेज'];
+var state={brand:'SANTRAM INDUSTRIES',selected:null,projects:[]}, editId=null;
+function $ (id){return document.getElementById(id);}
+function num(x,max){var y=Number(x);return Number.isFinite(y)?Math.min(max,Math.max(0,y)):0;}
+function safe(s,n){return String(s==null?'':s).slice(0,n);}
+function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2,minimumFractionDigits:2});}
+function clean(p){
+if(!p||typeof p!=='object')return null;
+var x={
+id:safe(p.id,80)||('p'+Date.now()),name:safe(p.name,80).trim(),brand:brands.includes(p.brand)?p.brand:brands[1],
+type:safe(p.type,50),qty:Math.max(1,Math.floor(num(p.qty,10000000))),
+owner:safe(p.owner,50),due:/^\d{4}-\d{2}-\d{2}$/.test(p.due||'')?p.due:'',
+stage:stages.includes(p.stage)?p.stage:'enquiry',
+approval:['pending','approved','rejected'].includes(p.approval)?p.approval:'pending',
+dispatch:['not-ready','ready','sent'].includes(p.dispatch)?p.dispatch:'not-ready',
+notes:safe(p.notes,600),material:num(p.material,1000000),labour:num(p.labour,1000000),shipping:num(p.shipping,1000000),
+waste:num(p.waste,100),margin:num(p.margin,95),gst:num(p.gst,40),checks:{}
+};
+checklist.forEach(function(k){x.checks[k]=!!(p.checks&&p.checks[k]);});
+return x.name?x:null;
+}
+function load(){try{var v=JSON.parse(localStorage.getItem(K)||'null');if(v&&Array.isArray(v.projects)){state.brand=brands.includes(v.brand)?v.brand:brands[1];state.projects=v.projects.slice(0,250).map(clean).filter(Boolean);state.selected=safe(v.selected,80)||null;}}catch(e){}}
+function save(){try{localStorage.setItem(K,JSON.stringify(state));}catch(e){$('feedback').textContent='ब्राउज़र में सेव नहीं हुआ। JSON बैकअप अलग रखें।';}}
+function active(){return state.projects.find(function(p){return p.id===state.selected;})||null;}
+function unit(p){return p.material*(1+p.waste/100)+p.labour+p.shipping;}
+function price(p){return unit(p)/(1-p.margin/100);}
+function urgency(p){
+var v=(p.stage==='done'?-100:10);
+if(p.approval==='pending'&&['approval','production'].includes(p.stage))v+=25;
+if(p.approval==='rejected')v+=30;
+if(p.due){var today=new Date();today.setHours(0,0,0,0);var days=Math.ceil((new Date(p.due+'T00:00:00')-today)/86400000);if(days<0)v+=40;else if(days<=3)v+=20;}
+return v;
+}
+function pick(){var a=state.projects.filter(function(p){return p.brand===state.brand&&p.stage!=='done';}).sort(function(a,b){return urgency(b)-urgency(a);});return a[0]||null;}
+function nextStep(p){
+if(p.approval==='rejected')return 'ग्राहक के बदलाव को समझकर नया design/proof और पुनः-अप्रूवल सूची तैयार करें।';
+if(p.stage==='enquiry')return 'brief, आकार, मात्रा, application method, target cost और target customer की कमी पहचानें।';
+if(p.stage==='design')return 'मौलिक डिजाइन के ग्राहक-प्रूफ और उत्पादन आवश्यकताओं का साफ draft तैयार करें।';
+if(p.stage==='costing')return 'BOM, wastage, labour, selling price और assumptions की जाँच वाला quotation draft तैयार करें।';
+if(p.stage==='approval')return 'भेजने योग्य केवल approval preview और अनुमोदन checklist बनाएँ; अपने आप न भेजें।';
+if(p.stage==='production')return p.approval!=='approved'?'बिना बाहरी customer approval evidence के उत्पादन रोकें; approval verification checklist दें।':'sample test, QC, operator readiness, material count और production release checklist बनाएँ; उत्पादन अपने आप न शुरू करें।';
+if(p.stage==='dispatch')return 'वास्तविक QC, invoicing, packing, address verification और dispatch approval checklist तैयार करें; स्वतः dispatch न करें।';
+return 'वास्तविक रिकॉर्ड और सीख को बिना customer secrets के दस्तावेज़ में समेटें।';
+}
+function addText(parent,tag,content,cls){var n=document.createElement(tag);n.textContent=content;if(cls)n.className=cls;parent.append(n);return n;}
+function btn(text,handler,cls){var n=document.createElement('button');n.type='button';n.textContent=text;n.className=cls||'btn';n.addEventListener('click',handler);return n;}
+function renderBrands(){var el=$('brands');el.replaceChildren();brands.forEach(function(b){var n=btn(b,function(){state.brand=b;state.selected=null;var p=pick();if(p)state.selected=p.id;save();render();},'chip');n.setAttribute('aria-pressed',String(state.brand===b));el.append(n);});}
+function renderList(){var out=$('projects');out.replaceChildren();var query=$('search').value.trim().toLowerCase();
+var arr=state.projects.filter(function(p){return p.brand===state.brand&&[p.name,p.id,p.type,p.notes].join(' ').toLowerCase().includes(query);});
+arr.sort(function(a,b){return urgency(b)-urgency(a);});
+if(!arr.length){addText(out,'p','इस ब्रांड में अभी रिकॉर्ड नहीं है। + नया रिकॉर्ड दबाएँ।','muted');return;}
+arr.forEach(function(p){
+var d=document.createElement('article');d.className='project'+(state.selected===p.id?' active':'');
+var top=document.createElement('div');top.className='row between';addText(top,'span',p.name,'name');addText(top,'span',names[p.stage]||p.stage,'pill');d.append(top);
+addText(d,'div',p.type+' · '+p.qty+' pcs'+(p.due?' · '+p.due:'')+(p.owner?' · '+p.owner:''),'muted');
+var bar=document.createElement('div');bar.className='progress';var i=document.createElement('i');i.style.width=(stages.indexOf(p.stage)/6*100)+'%';bar.append(i);d.append(bar);
+addText(d,'div','ग्राहक: '+(p.approval==='approved'?'स्वीकृत (स्वयं दर्ज)':p.approval==='rejected'?'सुधार चाहिए':'अप्रूवल बाकी')+' · डिस्पैच: '+(p.dispatch==='sent'?'स्वयं दर्ज / भेजा':p.dispatch==='ready'?'तैयार':'बाकी'),'muted');
+var actions=document.createElement('div');actions.className='row';
+actions.append(btn(state.selected===p.id?'सक्रिय':'इस पर NEXT',function(){state.selected=p.id;save();render();},'btn '+(state.selected===p.id?'primary':'')));
+actions.append(btn('संपादित',function(){openEdit(p);},'btn'));
+d.append(actions);out.append(d);
+});}
+function renderStats(){var arr=state.projects.filter(function(p){return p.brand===state.brand;});$('projectCount').textContent='प्रोजेक्ट: '+arr.length;
+$('pendingCount').textContent='अप्रूवल बाकी: '+arr.filter(function(p){return p.approval!=='approved'&&p.stage!=='done';}).length;
+$('dispatchCount').textContent='डिस्पैच बाकी: '+arr.filter(function(p){return p.dispatch!=='sent'&&p.stage!=='done';}).length;}
+function renderActive(){var p=active();var sel=$('selection'), totals=$('totals'), checks=$('fileChecks');sel.replaceChildren();totals.replaceChildren();checks.replaceChildren();
+if(!p){addText(sel,'strong','अभी सक्रिय प्रोजेक्ट नहीं है।');addText(sel,'p','पहला रिकॉर्ड दर्ज करें, फिर NEXT दबाएँ।','muted');$('nextRisk').textContent='';return;}
+addText(sel,'strong',p.name+' · '+p.brand);
+addText(sel,'div',nextStep(p));if(p.notes)addText(sel,'p','आपका नोट: '+p.notes,'muted');
+function cell(k,v){var el=document.createElement('div');addText(el,'span',k,'muted');addText(el,'b',v);totals.append(el);}
+cell('अनुमानित लागत/पीस',money(unit(p)));cell('बिक्री/पीस (GST पूर्व)',money(price(p)));
+cell('GST सहित/पीस',money(price(p)*(1+p.gst/100)));cell('कुल अनुमान ('+p.qty+' pcs)',money(price(p)*(1+p.gst/100)*p.qty));
+$('nextRisk').textContent=p.approval!=='approved'&&['production','dispatch'].includes(p.stage)?'⚠ अप्रूवल verification बाकी: इसे production/dispatch permission न समझें।':'Rates, GST applicability, taxes, freight और QC वास्तविक रूप से verify करें।';
+checklist.forEach(function(label){var lab=document.createElement('label');var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!p.checks[label];cb.addEventListener('change',function(){p.checks[label]=cb.checked;save();});lab.append(cb,document.createTextNode(label));checks.append(lab);});}
+function render(){renderBrands();renderStats();renderList();renderActive();}
+function fill(id,val){$(id).value=val==null?'':val;}
+function openEdit(p){editId=p?p.id:null;var x=p||{name:'',brand:state.brand,type:'Rhinestone / Hotfix',qty:100,owner:'',due:'',stage:'enquiry',approval:'pending',dispatch:'not-ready',notes:'',material:0,labour:0,shipping:0,waste:5,margin:25,gst:18};
+var keys=['name','brand','type','qty','owner','due','stage','approval','dispatch','notes','material','labour','shipping','waste','margin','gst'];
+keys.forEach(function(k){fill('p'+k,x[k]);});
+$('editorTitle').textContent=p?'रिकॉर्ड संपादित करें':'नया प्रोजेक्ट जोड़ें';$('deleteProject').disabled=!p;$('editorBox').open=true;$('editorBox').scrollIntoView({behavior:'smooth',block:'start'});}
+function readForm(){var x={id:editId||'aurs-'+Date.now()+'-'+Math.floor(Math.random()*1000000),checks:editId&&active()&&active().id===editId?active().checks:{}};['name','brand','type','qty','owner','due','stage','approval','dispatch','notes','material','labour','shipping','waste','margin','gst'].forEach(function(k){x[k]=$('p'+k).value;});
+var orig=state.projects.find(function(p){return p.id===editId;});if(orig)x.checks=orig.checks;return clean(x);}
+function buildPrompt(){var p=active();if(!p){$('feedback').textContent='पहले प्रोजेक्ट चुनें या दर्ज करें।';return;}
+var st='AURS ∞ BUSINESS COMMAND ENGINE / NEXT\n'+
+'Brand: '+p.brand+'\nProject alias: '+p.name+'\nTechnique: '+p.type+'\nQuantity: '+p.qty+'\nStage: '+names[p.stage]+'\nCustomer approval: '+p.approval+' (browser record, NOT verified external evidence)\nDispatch: '+p.dispatch+' (browser record)\nDue: '+(p.due||'not set')+'\nOwner: '+(p.owner||'not set')+'\n'+
+'Editable notes: '+(p.notes||'none')+'\nEstimated input rates INR/pc: material '+p.material+', labour '+p.labour+', other/shipping '+p.shipping+', material wastage '+p.waste+'%, target gross margin '+p.margin+'%, manually configured GST '+p.gst+'%.\n'+
+'Estimated unit cost INR '+unit(p).toFixed(2)+'; sale ex-GST INR '+price(p).toFixed(2)+'; sale incl-GST INR '+(price(p)*(1+p.gst/100)).toFixed(2)+'; total incl-GST INR '+(price(p)*(1+p.gst/100)*p.qty).toFixed(2)+'.\n'+
+'Local file checklist: '+checklist.map(function(k){return k+': '+(p.checks[k]?'marked':'missing');}).join('; ')+'\n'+
+'NEXT TASK: '+nextStep(p)+'\n'+
+'Using authorized accessible prior context only, prepare the most valuable concrete deliverable NOW in concise Hindi. Separate estimates from verified facts. If information is missing, make clearly labelled assumptions. Check QC, feasibility, buyer value, costing, privacy, IP and legitimate international commerce where relevant. Do not send messages, spend money, publish, start manufacturing, modify GitHub main, or dispatch without separate explicit approval. Finish with a single next action.';
+$('prompt').textContent=st;$('feedback').textContent='NEXT कमांड तैयार। इसे कॉपी करके ChatGPT में चलाएँ; कोई बाहरी कार्रवाई नहीं हुई।';}
+$('editor').addEventListener('submit',function(e){e.preventDefault();var p=readForm();if(!p){$('feedback').textContent='सही प्रोजेक्ट नाम दर्ज करें।';return;}
+var index=state.projects.findIndex(function(t){return t.id===p.id;});if(index<0&&state.projects.length>=250){$('feedback').textContent='इस prototype की 250 रिकॉर्ड सीमा है।';return;}
+if(index>=0)state.projects[index]=p;else state.projects.push(p);state.selected=p.id;state.brand=p.brand;save();$('editorBox').open=false;render();$('feedback').textContent='रिकॉर्ड स्थानीय ब्राउज़र में सेव हुआ।';});
+$('newProject').addEventListener('click',function(){openEdit(null);});
+$('cancelEdit').addEventListener('click',function(){$('editorBox').open=false;});
+$('deleteProject').addEventListener('click',function(){if(!editId||!confirm('यह लोकल रिकॉर्ड स्थायी रूप से मिटाएँ?'))return;state.projects=state.projects.filter(function(p){return p.id!==editId;});state.selected=null;var p=pick();if(p)state.selected=p.id;editId=null;save();$('editorBox').open=false;render();});
+$('search').addEventListener('input',renderList);
+$('next').addEventListener('click',buildPrompt);
+$('copy').addEventListener('click',function(){var t=$('prompt').textContent;if(t.indexOf('NEXT दबाने')===0){$('feedback').textContent='पहले NEXT दबाएँ।';return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){$('feedback').textContent='कमांड कॉपी हुई।';}).catch(function(){$('feedback').textContent='कॉपी अनुमति नहीं मिली; ऊपर का टेक्स्ट मैनुअली चुनें।';});}else{$('feedback').textContent='ऊपर का टेक्स्ट चुनकर कॉपी करें।';}});
+$('export').addEventListener('click',function(){var blob=new Blob([JSON.stringify({version:2,data:state,exported:new Date().toISOString()},null,2)],{type:'application/json'});var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='aurs-private-local-backup-v2.json';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);});
+$('importBtn').addEventListener('click',function(){$('importFile').click();});
+$('importFile').addEventListener('change',async function(e){var f=e.target.files[0];if(!f)return;try{if(f.size>1000000)throw Error('large');var d=JSON.parse(await f.text());if(d.version!==2||!d.data||!Array.isArray(d.data.projects)||d.data.projects.length>250)throw Error('invalid');var incoming=d.data.projects.map(clean);if(incoming.some(function(p){return !p;}))throw Error('invalid project');if(!confirm('सभी मौजूदा ब्राउज़र रिकॉर्ड बदलकर बैकअप के रिकॉर्ड रखें?'))return;state={brand:brands.includes(d.data.brand)?d.data.brand:brands[1],selected:safe(d.data.selected,80)||null,projects:incoming};if(!active()){var p=pick();state.selected=p?p.id:null;}save();render();$('feedback').textContent='बैकअप जोड़ा गया।';}catch(err){$('feedback').textContent='अमान्य या बड़ा JSON बैकअप।';}finally{e.target.value='';}});
+$('clearAll').addEventListener('click',function(){if(!confirm('सभी लोकल प्रोजेक्ट स्थायी रूप से मिटाएँ?'))return;state={brand:'SANTRAM INDUSTRIES',selected:null,projects:[]};save();render();$('feedback').textContent='लोकल रिकॉर्ड साफ।';});
+load();if(!active()){var p=pick();state.selected=p?p.id:null;}render();
+})();
+</script>
+</body>
+</html>
