@@ -51,19 +51,21 @@ create table if not exists public.aurs_approval_requests (
   created_at timestamptz not null default now(),
   expires_at timestamptz,
   unique(org_id,idempotency_key),
+  unique(id,org_id),
   foreign key(project_id,org_id) references public.aurs_projects(id,org_id)
 );
 
 create table if not exists public.aurs_approval_events (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.aurs_organizations(id),
-  request_id uuid not null references public.aurs_approval_requests(id),
+  request_id uuid not null,
   actor_id uuid not null references auth.users(id),
   event_type text not null
     check(event_type in ('requested','approved','rejected','expired','cancelled','executed','failed')),
   evidence_digest text,
   recorded_at timestamptz not null default now(),
-  safe_metadata jsonb not null default '{}'::jsonb
+  safe_metadata jsonb not null default '{}'::jsonb,
+  foreign key (request_id,org_id) references public.aurs_approval_requests(id,org_id)
 );
 
 create table if not exists public.aurs_audit_events (
@@ -101,27 +103,27 @@ create policy aurs_membership_self_read on public.aurs_memberships
 create policy aurs_org_member_read on public.aurs_organizations
   for select to authenticated
   using(exists(select 1 from public.aurs_memberships m
-    where m.org_id=id and m.user_id=auth.uid()));
+    where m.org_id=aurs_organizations.id and m.user_id=auth.uid()));
 
 create policy aurs_project_member_read on public.aurs_projects
   for select to authenticated
   using(exists(select 1 from public.aurs_memberships m
-    where m.org_id=org_id and m.user_id=auth.uid()));
+    where m.org_id=aurs_projects.org_id and m.user_id=auth.uid()));
 
 create policy aurs_approval_request_member_read on public.aurs_approval_requests
   for select to authenticated
   using(exists(select 1 from public.aurs_memberships m
-    where m.org_id=org_id and m.user_id=auth.uid()));
+    where m.org_id=aurs_approval_requests.org_id and m.user_id=auth.uid()));
 
 create policy aurs_approval_event_member_read on public.aurs_approval_events
   for select to authenticated
   using(exists(select 1 from public.aurs_memberships m
-    where m.org_id=org_id and m.user_id=auth.uid()));
+    where m.org_id=aurs_approval_events.org_id and m.user_id=auth.uid()));
 
 create policy aurs_audit_event_member_read on public.aurs_audit_events
   for select to authenticated
   using(exists(select 1 from public.aurs_memberships m
-    where m.org_id=org_id and m.user_id=auth.uid()));
+    where m.org_id=aurs_audit_events.org_id and m.user_id=auth.uid()));
 
 -- Event rows cannot be modified via normal UPDATE/DELETE, even by privileged
 -- application roles. DB owners can change schemas, so this is not absolute
