@@ -29,7 +29,7 @@ textarea{min-height:65px;resize:vertical}input:focus-visible,select:focus-visibl
 .project .name{font-weight:750;line-height:1.35}
 .progress{height:7px;background:#dbe8e1;border-radius:20px;overflow:hidden}
 .progress>i{display:block;height:100%;background:#2e9473}
-.checks{display:grid;grid-template-columns:1fr 1fr;gap:5px}.checks label{font-size:12px;display:flex;align-items:center;gap:5px}.checks input{width:auto}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.checks label{font-size:12px;display:flex;align-items:center;gap:5px;overflow-wrap:anywhere}.checks input{width:auto}
 .summary{border-radius:12px;background:#e9f4ee;padding:14px;line-height:1.6}
 .money{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .money div{padding:11px;border:1px solid #cbded3;border-radius:11px;background:white}
@@ -39,7 +39,7 @@ footer{padding:15px;text-align:center;font-size:12px;color:#5b766d}
 details>summary{font-weight:700;cursor:pointer}
 .hidden{display:none!important}
 @media(min-width:800px){.cols{display:grid;grid-template-columns:1.08fr .92fr;gap:13px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:440px){.card{padding:13px}.grid{grid-template-columns:1fr 1fr}.money b{font-size:17px}.btn.wide{width:100%}}
+@media(max-width:440px){.checks{grid-template-columns:1fr}.card{padding:13px}.grid{grid-template-columns:1fr 1fr}.money b{font-size:17px}.btn.wide{width:100%}}
 </style>
 </head>
 <body>
@@ -225,7 +225,7 @@ function cell(k,v){var el=document.createElement('div');addText(el,'span',k,'mut
 cell('अनुमानित लागत/पीस',money(unit(p)));cell('बिक्री/पीस (GST पूर्व)',money(price(p)));
 cell('GST सहित/पीस',money(price(p)*(1+p.gst/100)));cell('कुल अनुमान ('+p.qty+' pcs)',money(price(p)*(1+p.gst/100)*p.qty));
 $('nextRisk').textContent=p.approval!=='approved'&&['production','dispatch'].includes(p.stage)?'⚠ अप्रूवल verification बाकी: इसे production/dispatch permission न समझें।':'Rates, GST applicability, taxes, freight और QC वास्तविक रूप से verify करें।';
-checklist.forEach(function(label){var lab=document.createElement('label');var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!p.checks[label];cb.addEventListener('change',function(){p.checks[label]=cb.checked;save();});lab.append(cb,document.createTextNode(label));checks.append(lab);});}
+checklist.forEach(function(label){var lab=document.createElement('label');var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!p.checks[label];cb.addEventListener('change',function(){p.checks[label]=cb.checked;recordEvent('file-check-edited',p.id,label+' -> '+(cb.checked?'marked':'unmarked'));save();renderAudit();});lab.append(cb,document.createTextNode(label));checks.append(lab);});}
 function renderAudit(){var el=$('auditList');el.replaceChildren();var a=state.events.filter(function(e){return e.projectId===state.selected;}).slice(0,8);if(!a.length){addText(el,'p','इस प्रोजेक्ट का स्थानीय बदलाव रिकॉर्ड नहीं है।','muted');return;}a.forEach(function(e){addText(el,'div',e.at+' · '+e.type+(e.info?' · '+e.info:''),'muted');});}
 function render(){renderBrands();renderStats();renderList();renderActive();renderAudit();}
 function fill(id,val){$(id).value=val==null?'':val;}
